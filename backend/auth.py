@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from . import models, schemas, database
+import models, schemas, database
 
 # SECRET_KEY should be in env var in production
 SECRET_KEY = "sevimler_kuruyemis_key_2026_premium"

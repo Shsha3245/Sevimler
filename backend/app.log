@@ -1,0 +1,6 @@
+2026-04-17 00:11:19,076 - sevimler_api - INFO - Database initialized successfully.
+2026-04-17 00:11:35,509 - sevimler_api - INFO - Database initialized successfully.
+2026-04-17 00:11:43,503 - sevimler_api - INFO - Method: GET Path: / Status: 200 Duration: 0.00s
+2026-04-17 00:11:43,686 - sevimler_api - INFO - Method: GET Path: /favicon.ico Status: 404 Duration: 0.00s
+2026-04-17 00:11:48,074 - sevimler_api - INFO - Method: GET Path: /docs Status: 200 Duration: 0.00s
+2026-04-17 00:11:48,268 - sevimler_api - INFO - Method: GET Path: /openapi.json Status: 200 Duration: 0.05s

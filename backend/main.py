@@ -4,8 +4,8 @@ from fastapi import FastAPI, Request, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from . import models, schemas, database, auth
-from .routes import products, stories, orders, admin, payment
+import models, schemas, database, auth
+from routes import products, stories, orders, admin, payment
 import os
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv

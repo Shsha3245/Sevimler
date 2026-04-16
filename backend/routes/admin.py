@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import shutil
 import os
 import uuid
-from .. import models, schemas, database, auth
+import models, schemas, database, auth
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

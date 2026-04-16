@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from .. import models, database, auth
-from ..payment import paytr
-from ..shipping import service as shipping_service
+import models, database, auth
+from payment import paytr
+from shipping import service as shipping_service
 import logging
 
 router = APIRouter(prefix="/payment", tags=["payment"])
