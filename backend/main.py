@@ -115,7 +115,7 @@ def get_me(current_user: models.User = Depends(auth.get_current_user)):
 def startup_event():
     db = database.SessionLocal()
     admin_username = "2026Sevimler"
-    admin_password = "2026SevimlerKuruyemiş2026"
+    admin_password = "2026Sevimler26"
     
     admin_user = db.query(models.User).filter(models.User.username == admin_username).first()
     if not admin_user:
