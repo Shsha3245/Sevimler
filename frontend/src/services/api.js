@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://sevimler.onrender.com',
+  baseURL: 'https://api.sevimlerkuruyemis.com',
 });
 
 // Request interceptor to add token
