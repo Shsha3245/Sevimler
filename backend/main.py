@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+BASE_DIR = Path(__file__).resolve().parent
+ASSETS_DIR = BASE_DIR / "assets"
 # Configure Structured Logging
 logging.basicConfig(
     level=logging.INFO,
