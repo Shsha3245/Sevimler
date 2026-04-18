@@ -71,7 +71,7 @@ app.add_middleware(
 )
 
 # Static Files Serving
-app.mount("/assets", StaticFiles(directory="ASSETS_DIR"), name="assets")
+app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 # Include Routers
 app.include_router(products.router)
