@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="space-y-8">
           <div className="flex items-center space-x-3">
              <div className="relative group">
-               <img src="http://localhost:8000/assets/logo.jpeg" alt="Sevimler Logo" className="w-12 h-12 object-contain" />
+               <img src="https://api.sevimlerkuruyemis.com/assets/logo.jpeg" alt="Sevimler Logo" className="w-12 h-12 object-contain" />
                <div className="absolute inset-0 border border-gray-100 rounded-full" />
              </div>
              <div className="flex flex-col">
