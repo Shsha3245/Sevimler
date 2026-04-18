@@ -184,7 +184,7 @@ const ProductManager = () => {
                   <div className="w-full aspect-[4/3] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative group overflow-hidden">
                     {newProduct.image_url ? (
                       <>
-                        <img src={`http://localhost:8000${newProduct.image_url}`} className="w-full h-full object-cover" />
+                        <img src={`https://api.sevimlerkuruyemis.com${newProduct.image_url}`} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                            <label className="cursor-pointer bg-white text-black p-4 rounded-full shadow-lg hover:bg-[#d97706] hover:text-white transition-all">
                               <Camera className="w-6 h-6" />
@@ -234,7 +234,7 @@ const ProductManager = () => {
                 <td className="px-8 py-6">
                   <div className="flex items-center space-x-6">
                     <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden ring-1 ring-gray-100">
-                      <img src={p.image_url.startsWith('http') ? p.image_url : `http://localhost:8000${p.image_url}`} className="w-full h-full object-cover" />
+                      <img src={p.image_url.startsWith('http') ? p.image_url : `https://api.sevimlerkuruyemis.com${p.image_url}`} className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <div className="font-bold text-[#1c1917] uppercase tracking-tight">{p.name}</div>
