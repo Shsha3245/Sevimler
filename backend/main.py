@@ -110,7 +110,10 @@ def login(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 @app.get("/me", response_model=schemas.User)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
-
+    
+@app.get("/debug-version")
+def debug():
+    return {"version": "ASSETS_FIX_1"}
 # Seed Admin Account if not exists
 @app.on_event("startup")
 def startup_event():
