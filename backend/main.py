@@ -9,6 +9,7 @@ from routes import products, stories, orders, admin, payment
 import os
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from pathlib import Path
 load_dotenv()
 
 
