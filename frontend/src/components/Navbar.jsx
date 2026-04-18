@@ -29,7 +29,7 @@ const Navbar = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 px-4 md:px-8 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <img 
-            src="http://localhost:8000/assets/logo.jpeg" 
+            src="https://api.sevimlerkuruyemis.com/assets/logo.jpeg" 
             alt="Sevimler Logo" 
             className="h-17 w-auto object-contain"
           />
