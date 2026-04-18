@@ -34,7 +34,7 @@ const StorySection = () => {
               <div className="p-[3px] rounded-full bg-amber-500 group-hover:scale-110 transition-transform duration-300">
                 <div className="w-20 h-20 rounded-full border-[3px] border-stone-900 overflow-hidden bg-stone-800">
                   <img 
-                    src={story.image_url.startsWith('http') ? story.image_url : `http://localhost:8000${story.image_url}`} 
+                    src={story.image_url.startsWith('https') ? story.image_url : `https://api.sevimlerkuruyemis.com${story.image_url}`} 
                     alt={story.title} 
                     className="w-full h-full object-cover"
                   />
@@ -69,7 +69,7 @@ const StorySection = () => {
                className="relative w-full max-w-sm aspect-[9/16] overflow-hidden rounded-3xl shadow-2xl border border-amber-500/10"
             >
               <img 
-                src={activeStory.image_url.startsWith('http') ? activeStory.image_url : `http://localhost:8000${activeStory.image_url}`} 
+                src={activeStory.image_url.startsWith('https') ? activeStory.image_url : `https://api.sevimlerkuruyemis.com${activeStory.image_url}`} 
                 alt={activeStory.title} 
                 className="w-full h-full object-cover"
               />
