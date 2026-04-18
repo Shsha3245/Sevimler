@@ -11,6 +11,9 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 load_dotenv()
 
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 # Configure Structured Logging
 logging.basicConfig(
     level=logging.INFO,
@@ -68,9 +71,7 @@ app.add_middleware(
 )
 
 # Static Files Serving
-if not os.path.exists("backend/assets"):
-    os.makedirs("backend/assets")
-app.mount("/assets", StaticFiles(directory="backend/assets"), name="assets")
+app.mount("/assets", StaticFiles(directory="ASSETS_DIR"), name="assets")
 
 # Include Routers
 app.include_router(products.router)
