@@ -50,7 +50,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
                 cart.map((item) => (
                   <div key={item.id} className="flex space-x-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all hover:shadow-md">
                     <img 
-                      src={item.image_url.startsWith('http') ? item.image_url : `http://localhost:8000${item.image_url}`} 
+                      src={item.image_url.startsWith('https') ? item.image_url : `https://api.sevimlerkuruyemis.com${item.image_url}`} 
                       alt={item.name} 
                       className="w-20 h-20 object-cover rounded-xl border border-gray-200"
                     />
