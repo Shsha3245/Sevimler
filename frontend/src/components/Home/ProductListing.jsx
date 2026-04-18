@@ -88,7 +88,7 @@ const ProductListing = () => {
           >
             <div className="relative h-64 overflow-hidden rounded-xl bg-gray-50 mb-6">
               <img 
-                src={product.image_url.startsWith('http') ? product.image_url : `http://localhost:8000${product.image_url}`} 
+                src={product.image_url.startsWith('https') ? product.image_url : `https://api.sevimlerkuruyemis.com${product.image_url}`} 
                 alt={product.name} 
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
