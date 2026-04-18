@@ -110,7 +110,7 @@ const Dashboard = () => {
       {/* Sidebar */}
       <aside className="w-full md:w-72 bg-gray-50 border-r border-gray-100 p-8 flex flex-col">
         <div className="mb-12 flex items-center gap-3">
-           <img src="http://localhost:8000/assets/logo.jpeg" className="h-10 w-auto object-contain" />
+           <img src="https://api.sevimlerkuruyemis.com/assets/logo.jpeg" className="h-10 w-auto object-contain" />
            <div className="flex flex-col">
               <span className="text-lg font-bold text-[#1c1917]">Sevimler</span>
               <span className="text-[10px] font-bold text-[#d97706] uppercase tracking-widest">Admin Panel</span>
