@@ -20,8 +20,14 @@ const ProductListing = () => {
     const fetchProducts = async () => {
       try {
         const res = await api.get('/products');
-        setProducts(res.data);
-        setFilteredProducts(res.data);
+        const data = Array.isArray(res.data)
+          ? res.data
+          : res.data?.products;
+
+          setProducts(data || []);
+          setFilteredProducts(data || []);
+        setProducts(data);
+        setFilteredProducts(data);
       } catch (err) {
         console.error("Failed to fetch products", err);
       }
