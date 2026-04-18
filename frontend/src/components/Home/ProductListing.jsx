@@ -23,11 +23,12 @@ const ProductListing = () => {
         const data = Array.isArray(res.data)
           ? res.data
           : res.data?.products;
-
+          console.log("PRODUCT API RESPONSE:", res.data);
+          console.log("NORMALIZED DATA:", data);
           setProducts(data || []);
           setFilteredProducts(data || []);
-        setProducts(data);
-        setFilteredProducts(data);
+          setProducts(data);
+          setFilteredProducts(data);
       } catch (err) {
         console.error("Failed to fetch products", err);
       }
