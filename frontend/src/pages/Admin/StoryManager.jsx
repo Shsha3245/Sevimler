@@ -125,7 +125,7 @@ const StoryManager = () => {
                     <div className="w-full aspect-[9/16] max-w-[200px] mx-auto bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative group overflow-hidden">
                       {newStory.image_url ? (
                         <>
-                          <img src={`http://localhost:8000${newStory.image_url}`} className="w-full h-full object-cover" />
+                          <img src={`https://api.sevimlerkuruyemis.com${newStory.image_url}`} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                              <label className="cursor-pointer bg-black/20 p-4 rounded-full hover:bg-black/40 transition-all">
                                 <Camera className="w-6 h-6" />
@@ -162,7 +162,7 @@ const StoryManager = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
         {stories.map(s => (
           <div key={s.id} className="group relative bg-white rounded-2xl aspect-[9/16] overflow-hidden border border-gray-100 hover:border-[#d97706]/30 transition-all shadow-sm hover:shadow-lg">
-            <img src={s.image_url.startsWith('http') ? s.image_url : `http://localhost:8000${s.image_url}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            <img src={s.image_url.startsWith('http') ? s.image_url : `https://api.sevimlerkuruyemis.com${s.image_url}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#1c1917]/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
             <div className="absolute bottom-4 left-4 right-4">
               <div className="text-[10px] font-black text-white uppercase tracking-[0.2em]">{s.title || "Hikaye"}</div>
