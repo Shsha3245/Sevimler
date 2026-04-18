@@ -62,7 +62,7 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
         raise HTTPException(status_code=400, detail="Invalid image format")
     
     filename = f"{uuid.uuid4()}.{ext}"
-    file_path = os.path.join("backend", "assets", filename)
+    file_path = os.path.join("assets", filename)
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
