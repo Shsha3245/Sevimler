@@ -4,13 +4,17 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 });
 
-// Request interceptor to add token
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
+    let token = localStorage.getItem('token');
+
+    // safety check (null / undefined / string "null")
+    if (token && token !== "null" && token !== "undefined") {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {
@@ -18,17 +22,20 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    // token expired / invalid
+    if (error?.response?.status === 401) {
       localStorage.removeItem('token');
-      // Redirect to login if not already there
+
+      // redirect only if not already login page
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
     }
+
     return Promise.reject(error);
   }
 );
