@@ -123,8 +123,8 @@ def debug():
 @app.on_event("startup")
 def startup_event():
     db = database.SessionLocal()
-    admin_username = "2026Sevimler"
-    admin_password = "2026Sevimler26"
+    admin_username = os.getenv("ADMIN_USERNAME")
+    admin_password = os.getenv("ADMIN_PASSWORD")
     
     admin_user = db.query(models.User).filter(models.User.username == admin_username).first()
     if not admin_user:
