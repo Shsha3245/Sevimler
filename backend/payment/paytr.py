@@ -9,6 +9,7 @@ import logging
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID")
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY")
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")  # 1=test, 0=live
 APP_ENV = os.getenv("ENV", "development")
 
 # MOCK sadece development'ta aktif
@@ -18,7 +19,7 @@ MOCK_MODE = APP_ENV != "production" and not all([MERCHANT_ID, MERCHANT_KEY, MERC
 # -------------------------------
 # CREATE PAYMENT SESSION
 # -------------------------------
-def create_payment_session(order, user_email, user_ip="127.0.0.1"):
+def create_payment_session(order, user_email, user_ip):
     """
     PayTR token oluşturur
     """
@@ -38,12 +39,12 @@ def create_payment_session(order, user_email, user_ip="127.0.0.1"):
         payment_amount = int(order.total_price * 100)  # TL → kuruş
         merchant_oid = str(order.id)
 
-        # Basket oluştur
+        # Basket oluştur (PayTR format)
         user_basket = []
         for item in order.items:
             user_basket.append([
                 item.product.name,
-                str(item.price_at_time),
+                str(int(item.price_at_time * 100)),  # kuruş
                 item.quantity
             ])
 
@@ -61,7 +62,7 @@ def create_payment_session(order, user_email, user_ip="127.0.0.1"):
             "0" +   # no_installment
             "0" +   # max_installment
             "TRY" +
-            "0"     # test_mode (0 = live)
+            TEST_MODE
         )
 
         # TOKEN
@@ -80,11 +81,12 @@ def create_payment_session(order, user_email, user_ip="127.0.0.1"):
             "email": user_email,
             "payment_amount": payment_amount,
             "currency": "TRY",
+            "test_mode": TEST_MODE,
             "mode": "PRODUCTION"
         }
 
     except Exception as e:
-        logging.error(f"PayTR session creation error: {str(e)}")
+        logging.error(f"PayTR session creation error: {str(e)}", exc_info=True)
         raise Exception("Payment session creation failed")
 
 
@@ -119,9 +121,8 @@ def verify_callback(data):
             ).digest()
         ).decode()
 
-        # timing attack safe compare
-        return hmac.compare_digest(hash_received, expected_hash)
+        return hmac.compare_digest(expected_hash, hash_received)
 
     except Exception as e:
-        logging.error(f"Callback verification error: {str(e)}")
+        logging.error(f"Callback verification error: {str(e)}", exc_info=True)
         return False
