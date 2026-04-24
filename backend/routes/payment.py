@@ -7,58 +7,95 @@ import logging
 
 router = APIRouter(prefix="/payment", tags=["payment"])
 
+
+# -------------------------------
+# CREATE PAYMENT
+# -------------------------------
 @router.post("/create")
-async def create_payment(order_id_data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+async def create_payment(
+    request: Request,
+    order_id_data: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
     order_id = order_id_data.get("order_id")
     if not order_id:
         raise HTTPException(status_code=400, detail="order_id is required")
 
-    # Fetch order and validate
     order = db.query(models.Order).filter(models.Order.id == order_id).first()
+
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-        
-    if order.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to pay for this order")
 
-    # Use modular PayTR handler
-    user_ip = "127.0.0.1" # Standard fallback, could be extracted from request
-    pay_data = paytr.create_payment_session(order, current_user.username + "@example.com", user_ip)
-    
+    if order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # 🔥 GERÇEK IP AL
+    user_ip = request.headers.get("x-forwarded-for")
+    if user_ip:
+        user_ip = user_ip.split(",")[0]
+    else:
+        user_ip = request.client.host
+
+    # 🔥 GERÇEK EMAIL (modelde varsa)
+    user_email = getattr(current_user, "email", None)
+    if not user_email:
+        user_email = f"{current_user.username}@example.com"
+
+    pay_data = paytr.create_payment_session(
+        order=order,
+        user_email=user_email,
+        user_ip=user_ip
+    )
+
     return pay_data
 
+
+# -------------------------------
+# CALLBACK
+# -------------------------------
 @router.post("/callback")
 async def payment_callback(request: Request, db: Session = Depends(database.get_db)):
-    # Get Form Data
     form_data = await request.form()
-    
-    # Verify Callback
+
+    # 🔥 HASH VERIFY
     if not paytr.verify_callback(form_data):
-        logging.warning("PAYTR: Received invalid callback hash.")
-        return "PAYTR FAIL: Hash mismatch"
-    
+        logging.warning("PAYTR: Invalid hash")
+        return "OK"  # ❗ ALWAYS OK
+
     merchant_oid = form_data.get("merchant_oid")
     status = form_data.get("status")
-    
-    # Find Order
+
+    if not merchant_oid:
+        return "OK"
+
     order = db.query(models.Order).filter(models.Order.id == int(merchant_oid)).first()
+
     if not order:
-        return "PAYTR REJECTED: Order not found"
-        
-    # Update Status
+        return "OK"
+
+    # 🔥 DUPLICATE CALLBACK PROTECTION
+    if order.status in ["paid", "shipped"]:
+        return "OK"
+
     if status == "success":
         order.status = "paid"
         db.commit()
-        
-        # Trigger Modular Shipping
-        tracking_number = shipping_service.create_shipment(order)
-        if tracking_number:
-            order.tracking_number = tracking_number
-            order.status = "shipped" # Auto-move to shipped if shipping triggered
-            db.commit()
-            
-        return "OK"
+
+        # 🔥 SHIPPING (SAFE)
+        try:
+            tracking_number = shipping_service.create_shipment(order)
+
+            if tracking_number:
+                order.tracking_number = tracking_number
+                order.status = "shipped"
+                db.commit()
+
+        except Exception as e:
+            logging.error(f"Shipping error: {str(e)}")
+
     else:
         order.status = "failed"
         db.commit()
-        return "OK"
+
+    return "OK"
