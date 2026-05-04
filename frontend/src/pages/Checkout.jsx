@@ -127,6 +127,14 @@ const Checkout = () => {
               onChange={handleInputChange}
               className="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             />
+            <input
+              name="email"
+              placeholder="Email"
+              required
+              value={formData.email || ''}
+              onChange={handleInputChange}
+              className="w-full border p-3 rounded-lg"
+            />
 
             {/* AĞIRLIK */}
             <div className="flex items-center gap-2 text-sm text-gray-600">
