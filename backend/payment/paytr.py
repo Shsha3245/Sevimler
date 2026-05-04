@@ -16,13 +16,15 @@ def create_payment_session(order, user_email, user_ip):
         raise Exception("PAYTR ENV MISSING")
 
     try:
+        # ✅ toplam tutar (kuruş)
         amount = str(int(float(order.total_price) * 100))
         oid = str(order.id)
 
+        # ✅ basket (TL olarak, çarpma YOK)
         basket = []
         for item in order.items:
-            name = getattr(item.product, "name", "urun")
-            price = str(int(float(item.price_at_time) * 100))
+            name = str(getattr(item.product, "name", "urun"))
+            price = str(float(item.price_at_time))  # ❗ 100 ile çarpma
             qty = int(item.quantity or 1)
             basket.append([name, price, qty])
 
@@ -30,35 +32,35 @@ def create_payment_session(order, user_email, user_ip):
             json.dumps(basket).encode("utf-8")
         ).decode("utf-8")
 
-        user_ip = user_ip or "127.0.0.1"
+        user_ip = str(user_ip or "127.0.0.1")
+        user_email = str(user_email)
 
-        # PAYTR OFFICIAL FORMAT (ORDER IS IMPORTANT)
+        # ✅ DOĞRU HASH FORMAT
         hash_str = (
-            MERCHANT_ID +
+            str(MERCHANT_ID) +
             user_ip +
             oid +
             user_email +
             amount +
             user_basket +
-            "0" +
-            "0" +
-            "TRY" +
+            "0" +          # no_installment
+            "0" +          # max_installment
+            "TL" +         # ❗ TRY DEĞİL
             TEST_MODE
         )
 
         token = base64.b64encode(
             hmac.new(
-                MERCHANT_KEY.encode(),
-                (hash_str + MERCHANT_SALT).encode(),
+                MERCHANT_KEY.encode("utf-8"),
+                (hash_str + MERCHANT_SALT).encode("utf-8"),
                 hashlib.sha256
             ).digest()
-        ).decode()
+        ).decode("utf-8")
 
+        # ✅ frontend'e dönecek sade response
         return {
             "token": token,
-            "merchant_oid": oid,
-            "amount": amount,
-            "mode": "TEST" if TEST_MODE == "1" else "LIVE"
+            "merchant_oid": oid
         }
 
     except Exception as e:
