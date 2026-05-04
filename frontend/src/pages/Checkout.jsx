@@ -54,6 +54,7 @@ const Checkout = () => {
     setErrorMessage('');
 
     try {
+      // 1️⃣ ORDER OLUŞTUR
       const orderItems = cart.map((item) => ({
         product_id: item.id,
         quantity: item.quantity,
@@ -67,48 +68,51 @@ const Checkout = () => {
       const orderId = orderRes?.data?.id;
       if (!orderId) throw new Error('Order oluşturulamadı');
 
+      // 2️⃣ PAYTR DATA AL
       const paymentRes = await api.post('/payment/create', {
         order_id: orderId,
       });
-      
-      const token = paymentRes?.data?.token;
-      
-      if (!token) {
-        throw new Error("TOKEN YOK");
+
+      const paymentData = paymentRes?.data;
+
+      if (!paymentData || !paymentData.paytr_token) {
+        throw new Error("PAYTR DATA YOK");
       }
-      
-      // MOCK kontrol önce olmalı
-      if (paymentRes.data.mode === 'MOCK') {
+
+      // MOCK varsa direkt geç
+      if (paymentData.mode === 'MOCK') {
         clearCart();
         navigate(`/success?orderId=${orderId}&mode=mock`);
         return;
       }
-      
-      // PAYTR ONLY (DOĞRU YÖNTEM)
+
+      // 3️⃣ PAYTR FORM (FULL PARAMS)
       const form = document.createElement("form");
       form.method = "POST";
       form.action = "https://www.paytr.com/odeme/guvenli/";
-      
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "token";
-      input.value = token;
-      
-      form.appendChild(input);
+
+      Object.keys(paymentData).forEach((key) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = paymentData[key];
+        form.appendChild(input);
+      });
+
       document.body.appendChild(form);
-      
+
       clearCart();
       form.submit();
-    
-        } catch (err) {
-          setStatus('error');
-          setErrorMessage(
-            err.response?.data?.detail ||
-            err.message ||
-            'Ödeme hatası'
-          );
-        }
-      };
+
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage(
+        err.response?.data?.detail ||
+        err.message ||
+        'Ödeme hatası'
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
