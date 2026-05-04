@@ -14,12 +14,15 @@ const Checkout = () => {
     full_name: user?.full_name || '',
     address: '',
     phone: '',
+    email: user?.email || '',
   });
 
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // ✅ toplam ağırlık
+  // ---------------------------
+  // TOTAL WEIGHT
+  // ---------------------------
   const totalWeight = useMemo(() => {
     return cart.reduce(
       (acc, item) => acc + (item.weight || 1.0) * item.quantity,
@@ -29,18 +32,23 @@ const Checkout = () => {
 
   const isWeightValid = totalWeight >= 1 && totalWeight <= 100;
 
-  // ✅ input handler
+  // ---------------------------
+  // INPUT
+  // ---------------------------
   const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
-  // ✅ submit
+  // ---------------------------
+  // CHECKOUT
+  // ---------------------------
   const handleCheckout = async (e) => {
     e.preventDefault();
-    if (!isWeightValid) return;
+
+    if (!isWeightValid || cart.length === 0) return;
 
     setStatus('loading');
     setErrorMessage('');
@@ -51,43 +59,56 @@ const Checkout = () => {
         quantity: item.quantity,
       }));
 
-      // 1️⃣ ORDER
-      const orderResponse = await api.post('/orders', {
+      // 1) ORDER
+      const orderRes = await api.post('/orders', {
         ...formData,
         items: orderItems,
       });
 
-      const orderId = orderResponse.data.id;
+      const orderId = orderRes.data.id;
 
-      // 2️⃣ PAYMENT TOKEN
+      // 2) PAYMENT
       const paymentRes = await api.post('/payment/create', {
         order_id: orderId,
       });
 
-      // MOCK MODE
+      // 3) MOCK MODE
       if (paymentRes.data.mode === 'MOCK') {
         clearCart();
         navigate(`/success?orderId=${orderId}&mode=mock`);
         return;
       }
 
-      // 3️⃣ REDIRECT
-      window.location.href = `https://www.paytr.com/odeme/guvenli/${paymentRes.data.token}`;
+      // 4) PAYTR REDIRECT (CORRECT FLOW)
+      const token = paymentRes.data.token;
+
+      if (!token) {
+        throw new Error('Payment token alınamadı');
+      }
+
+      clearCart();
+
+      // PayTR secure redirect
+      window.location.href = `https://www.paytr.com/odeme/guvenli/${token}`;
 
     } catch (err) {
       setStatus('error');
       setErrorMessage(
-        err.response?.data?.detail || 'Sipariş sırasında hata oluştu.'
+        err.response?.data?.detail ||
+        err.message ||
+        'Ödeme işlemi başarısız'
       );
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
+
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10">
 
-        {/* LEFT - FORM */}
+        {/* FORM */}
         <div className="bg-white p-6 rounded-2xl shadow-lg">
+
           <div
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 cursor-pointer mb-6 text-gray-600 hover:text-black"
@@ -106,7 +127,7 @@ const Checkout = () => {
               required
               value={formData.full_name}
               onChange={handleInputChange}
-              className="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border p-3 rounded-lg"
             />
 
             <textarea
@@ -116,27 +137,28 @@ const Checkout = () => {
               value={formData.address}
               onChange={handleInputChange}
               rows="4"
-              className="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border p-3 rounded-lg"
             />
 
             <input
               name="phone"
-              placeholder="Telefon (05xx...)"
+              placeholder="Telefon"
               required
               value={formData.phone}
-              onChange={handleInputChange}
-              className="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-            <input
-              name="email"
-              placeholder="Email"
-              required
-              value={formData.email || ''}
               onChange={handleInputChange}
               className="w-full border p-3 rounded-lg"
             />
 
-            {/* AĞIRLIK */}
+            <input
+              name="email"
+              placeholder="Email"
+              required
+              value={formData.email}
+              onChange={handleInputChange}
+              className="w-full border p-3 rounded-lg"
+            />
+
+            {/* WEIGHT */}
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Weight size={16} />
               {totalWeight.toFixed(2)} KG
@@ -144,7 +166,7 @@ const Checkout = () => {
 
             {!isWeightValid && (
               <p className="text-red-500 text-sm">
-                Sipariş ağırlığı 1 - 100 KG arasında olmalıdır
+                Ağırlık 1 - 100 KG arasında olmalı
               </p>
             )}
 
@@ -158,7 +180,7 @@ const Checkout = () => {
 
             <button
               type="submit"
-              disabled={status === 'loading' || !isWeightValid}
+              disabled={status === 'loading' || !isWeightValid || cart.length === 0}
               className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
             >
               {status === 'loading' ? 'Yükleniyor...' : 'Ödemeye Git'}
@@ -167,30 +189,30 @@ const Checkout = () => {
           </form>
         </div>
 
-        {/* RIGHT - ORDER SUMMARY */}
+        {/* SUMMARY */}
         <div className="bg-white p-6 rounded-2xl shadow-lg h-fit">
+
           <h2 className="text-xl font-bold mb-4">Sipariş Özeti</h2>
 
           <div className="space-y-3 max-h-80 overflow-y-auto">
+
             {cart.map((item) => (
               <div
                 key={item.id}
                 className="flex justify-between text-sm border-b pb-2"
               >
-                <span>
-                  {item.name} x {item.quantity}
-                </span>
-                <span>
-                  {(item.price * item.quantity).toFixed(2)} ₺
-                </span>
+                <span>{item.name} x {item.quantity}</span>
+                <span>{(item.price * item.quantity).toFixed(2)} ₺</span>
               </div>
             ))}
+
           </div>
 
           <div className="mt-6 border-t pt-4 flex justify-between font-bold text-lg">
             <span>Toplam</span>
             <span>{total.toFixed(2)} ₺</span>
           </div>
+
         </div>
 
       </div>
