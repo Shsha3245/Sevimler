@@ -1,39 +1,113 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import update
+
 import database, auth, models
 from payment import paytr
 
 router = APIRouter(prefix="/payment", tags=["payment"])
 
 
+# =========================
+# REQUEST MODEL
+# =========================
+class PaymentCreateRequest(BaseModel):
+    order_id: int
+
+
+# =========================
+# CREATE PAYMENT SESSION
+# =========================
 @router.post("/create")
 def create_payment(
-    payload: dict,
+    payload: PaymentCreateRequest,
     request: Request,
     db: Session = Depends(database.get_db),
-    user = Depends(auth.get_current_user)
+    user=Depends(auth.get_current_user)
 ):
-    order_id = payload.get("order_id")
-
-    if not order_id:
-        raise HTTPException(400, "order_id missing")
-
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    # =========================
+    # ORDER FETCH
+    # =========================
+    order = db.query(models.Order).filter(
+        models.Order.id == payload.order_id
+    ).first()
 
     if not order:
-        raise HTTPException(404, "order not found")
+        raise HTTPException(status_code=404, detail="Order not found")
 
+    # =========================
+    # OWNERSHIP CHECK
+    # =========================
     if order.user_id != user.id:
-        raise HTTPException(403, "forbidden")
+        raise HTTPException(status_code=403, detail="Forbidden")
 
-    # FIX IP
-    ip = request.headers.get("x-forwarded-for", request.client.host)
+    # =========================
+    # EMAIL CHECK (STRICT)
+    # =========================
+    user_email = getattr(user, "email", None)
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email missing")
 
-    # FIX EMAIL
-    email = getattr(order, "email", None) or getattr(user, "email", None) or f"{user.username}@mail.com"
+    # =========================
+    # IDEMPOTENCY CHECK (CRITICAL FIX)
+    # =========================
+    if order.status == "PAID":
+        raise HTTPException(status_code=400, detail="Order already paid")
 
-    return paytr.create_payment_session(
-        order=order,
-        user_email=email,
-        user_ip=ip
+    if order.status == "PAYMENT_INITIATED":
+        # aynı ödeme tekrar istenirse yeniden oluşturma
+        return paytr.create_payment_session(
+            order=order,
+            user_email=user_email,
+            user_ip=request.client.host
+        )
+
+    # =========================
+    # IP SAFE EXTRACTION
+    # =========================
+    xff = request.headers.get("x-forwarded-for")
+    user_ip = (
+        xff.split(",")[0].strip()
+        if xff
+        else request.client.host
     )
+
+    # =========================
+    # ATOMIC STATUS UPDATE (SAFE)
+    # =========================
+    db.execute(
+        update(models.Order)
+        .where(models.Order.id == order.id)
+        .values(status="PAYMENT_INITIATED")
+    )
+    db.commit()
+
+    # refresh order state
+    db.refresh(order)
+
+    # =========================
+    # PAYMENT SESSION
+    # =========================
+    try:
+        response = paytr.create_payment_session(
+            order=order,
+            user_email=user_email,
+            user_ip=user_ip
+        )
+
+        return response
+
+    except Exception as e:
+        # rollback state on failure
+        db.execute(
+            update(models.Order)
+            .where(models.Order.id == order.id)
+            .values(status="PENDING")
+        )
+        db.commit()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Payment init failed: {str(e)}"
+        )
