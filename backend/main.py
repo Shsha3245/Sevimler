@@ -70,6 +70,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.middleware("http")
+async def log_origin(request: Request, call_next):
+    print("Origin:", request.headers.get("origin"))
+    response = await call_next(request)
+    return response
+
 
 # Static Files Serving
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
