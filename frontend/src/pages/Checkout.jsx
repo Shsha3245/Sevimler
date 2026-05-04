@@ -21,11 +21,18 @@ const Checkout = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   // ---------------------------
+  // CART GUARD
+  // ---------------------------
+  const isCartValid = cart && cart.length > 0;
+
+  // ---------------------------
   // TOTAL WEIGHT
   // ---------------------------
   const totalWeight = useMemo(() => {
+    if (!cart) return 0;
+
     return cart.reduce(
-      (acc, item) => acc + (item.weight || 1.0) * item.quantity,
+      (acc, item) => acc + (item.weight || 1) * item.quantity,
       0
     );
   }, [cart]);
@@ -48,53 +55,65 @@ const Checkout = () => {
   const handleCheckout = async (e) => {
     e.preventDefault();
 
-    if (!isWeightValid || cart.length === 0) return;
+    if (!isCartValid) {
+      setErrorMessage('Sepet boş');
+      return;
+    }
+
+    if (!isWeightValid) {
+      setErrorMessage('Ağırlık 1-100 KG arasında olmalı');
+      return;
+    }
 
     setStatus('loading');
     setErrorMessage('');
 
     try {
+      // ORDER ITEMS
       const orderItems = cart.map((item) => ({
         product_id: item.id,
         quantity: item.quantity,
       }));
 
-      // 1) ORDER
+      // 1️⃣ CREATE ORDER
       const orderRes = await api.post('/orders', {
         ...formData,
         items: orderItems,
       });
 
-      const orderId = orderRes.data.id;
+      const orderId = orderRes?.data?.id;
 
-      // 2) PAYMENT
+      if (!orderId) {
+        throw new Error('Order oluşturulamadı');
+      }
+
+      // 2️⃣ PAYMENT
       const paymentRes = await api.post('/payment/create', {
         order_id: orderId,
       });
 
-      // 3) MOCK MODE
+      const token = paymentRes?.data?.token;
+
+      if (!token) {
+        throw new Error('Payment token alınamadı');
+      }
+
+      // MOCK MODE
       if (paymentRes.data.mode === 'MOCK') {
         clearCart();
         navigate(`/success?orderId=${orderId}&mode=mock`);
         return;
       }
 
-      // 4) PAYTR REDIRECT (CORRECT FLOW)
-      const token = paymentRes.data.token;
-
-      if (!token) {
-        throw new Error('Payment token alınamadı');
-      }
-
+      // 3️⃣ SUCCESS FLOW
       clearCart();
-
-      // PayTR secure redirect
-      window.location.href = `https://www.paytr.com/odeme/guvenli/${token}`;
+      window.location.href =
+        `https://www.paytr.com/odeme/guvenli/${token}`;
 
     } catch (err) {
       setStatus('error');
       setErrorMessage(
-        err.response?.data?.detail ||
+        err?.response?.data?.detail ||
         err.message ||
         'Ödeme işlemi başarısız'
       );
@@ -106,7 +125,7 @@ const Checkout = () => {
 
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10">
 
-        {/* FORM */}
+        {/* LEFT - FORM */}
         <div className="bg-white p-6 rounded-2xl shadow-lg">
 
           <div
@@ -180,7 +199,7 @@ const Checkout = () => {
 
             <button
               type="submit"
-              disabled={status === 'loading' || !isWeightValid || cart.length === 0}
+              disabled={status === 'loading' || !isWeightValid || !isCartValid}
               className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
             >
               {status === 'loading' ? 'Yükleniyor...' : 'Ödemeye Git'}
@@ -189,7 +208,7 @@ const Checkout = () => {
           </form>
         </div>
 
-        {/* SUMMARY */}
+        {/* RIGHT - SUMMARY */}
         <div className="bg-white p-6 rounded-2xl shadow-lg h-fit">
 
           <h2 className="text-xl font-bold mb-4">Sipariş Özeti</h2>
