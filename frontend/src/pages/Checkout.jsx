@@ -70,40 +70,45 @@ const Checkout = () => {
       const paymentRes = await api.post('/payment/create', {
         order_id: orderId,
       });
-
+      
       const token = paymentRes?.data?.token;
-
-      console.log("TOKEN:", token);
-
+      
       if (!token) {
         throw new Error("TOKEN YOK");
       }
       
-      window.location.href =
-        `https://www.paytr.com/odeme/guvenli/${token}`;
-
-      if (!token) throw new Error('PayTR token alınamadı');
-
+      // MOCK kontrol önce olmalı
       if (paymentRes.data.mode === 'MOCK') {
         clearCart();
         navigate(`/success?orderId=${orderId}&mode=mock`);
         return;
       }
-
+      
+      // PAYTR ONLY (DOĞRU YÖNTEM)
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://www.paytr.com/odeme/guvenli/";
+      
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "token";
+      input.value = token;
+      
+      form.appendChild(input);
+      document.body.appendChild(form);
+      
       clearCart();
-
-      window.location.href =
-        `https://www.paytr.com/odeme/guvenli/${token}`;
-
-    } catch (err) {
-      setStatus('error');
-      setErrorMessage(
-        err.response?.data?.detail ||
-        err.message ||
-        'Ödeme hatası'
-      );
-    }
-  };
+      form.submit();
+    
+        } catch (err) {
+          setStatus('error');
+          setErrorMessage(
+            err.response?.data?.detail ||
+            err.message ||
+            'Ödeme hatası'
+          );
+        }
+      };
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
