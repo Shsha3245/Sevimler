@@ -5,67 +5,54 @@ import hmac
 import json
 import logging
 
-# ENV
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID")
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY")
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
-TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")  # 1=test, 0=live
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
 APP_ENV = os.getenv("ENV", "development")
 
-# MOCK sadece development'ta aktif
-MOCK_MODE = APP_ENV != "production" and not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT])
+MOCK_MODE = APP_ENV != "production" and not all([
+    MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT
+])
 
 
-# -------------------------------
-# CREATE PAYMENT SESSION
-# -------------------------------
 def create_payment_session(order, user_email, user_ip):
-    """
-    PayTR token oluşturur
-    """
 
     if MOCK_MODE:
-        logging.warning(f"[MOCK PAYTR] Order {order.id}")
         return {
-            "token": f"MOCK_TOKEN_{order.id}",
-            "merchant_id": "MOCK_MID",
+            "token": f"MOCK_{order.id}",
             "mode": "MOCK"
         }
 
-    if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
-        raise Exception("PayTR credentials missing")
-
     try:
-        payment_amount = int(order.total_price * 100)  # TL → kuruş
+        payment_amount = int(order.total_price * 100)
         merchant_oid = str(order.id)
 
-        # Basket oluştur (PayTR format)
         user_basket = []
         for item in order.items:
             user_basket.append([
                 item.product.name,
-                str(int(item.price_at_time * 100)),  # kuruş
+                str(int(item.price_at_time * 100)),
                 item.quantity
             ])
 
-        user_basket_json = json.dumps(user_basket)
-        user_basket_encoded = base64.b64encode(user_basket_json.encode()).decode()
+        user_basket_str = base64.b64encode(
+            json.dumps(user_basket).encode()
+        ).decode()
 
-        # HASH STRING
         hash_str = (
             MERCHANT_ID +
             user_ip +
             merchant_oid +
             user_email +
             str(payment_amount) +
-            user_basket_encoded +
-            "0" +   # no_installment
-            "0" +   # max_installment
+            user_basket_str +
+            "0" +
+            "0" +
             "TRY" +
             TEST_MODE
         )
 
-        # TOKEN
         paytr_token = base64.b64encode(
             hmac.new(
                 MERCHANT_KEY.encode(),
@@ -76,40 +63,24 @@ def create_payment_session(order, user_email, user_ip):
 
         return {
             "token": paytr_token,
-            "merchant_id": MERCHANT_ID,
-            "merchant_oid": merchant_oid,
-            "email": user_email,
-            "payment_amount": payment_amount,
-            "currency": "TRY",
-            "test_mode": TEST_MODE,
             "mode": "PRODUCTION"
         }
 
     except Exception as e:
-        logging.error(f"PayTR session creation error: {str(e)}", exc_info=True)
-        raise Exception("Payment session creation failed")
+        logging.error("PayTR ERROR", exc_info=True)
+        raise Exception("Payment failed")
 
 
-# -------------------------------
-# VERIFY CALLBACK
-# -------------------------------
 def verify_callback(data):
-    """
-    PayTR callback doğrulama
-    """
 
     if MOCK_MODE:
-        logging.warning("MOCK MODE: callback auto-approved")
         return True
 
     try:
         merchant_oid = data.get("merchant_oid")
         status = data.get("status")
         total_amount = data.get("total_amount")
-        hash_received = data.get("hash")
-
-        if not all([merchant_oid, status, total_amount, hash_received]):
-            return False
+        received_hash = data.get("hash")
 
         hash_str = merchant_oid + MERCHANT_SALT + status + total_amount
 
@@ -121,8 +92,7 @@ def verify_callback(data):
             ).digest()
         ).decode()
 
-        return hmac.compare_digest(expected_hash, hash_received)
+        return hmac.compare_digest(expected_hash, received_hash)
 
-    except Exception as e:
-        logging.error(f"Callback verification error: {str(e)}", exc_info=True)
+    except Exception:
         return False
