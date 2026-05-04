@@ -10,21 +10,19 @@ MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
 TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
 
 
-def create_payment_session(order, user_email, user_ip):
+def create_payment_session(order, user_email, request):
 
     if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
         raise Exception("PAYTR ENV MISSING")
 
     try:
-        # ✅ toplam tutar (kuruş)
         amount = str(int(float(order.total_price) * 100))
         oid = str(order.id)
 
-        # ✅ basket (TL olarak, çarpma YOK)
         basket = []
         for item in order.items:
             name = str(getattr(item.product, "name", "urun"))
-            price = str(float(item.price_at_time))  # ❗ 100 ile çarpma
+            price = str(float(item.price_at_time))
             qty = int(item.quantity or 1)
             basket.append([name, price, qty])
 
@@ -32,10 +30,10 @@ def create_payment_session(order, user_email, user_ip):
             json.dumps(basket).encode("utf-8")
         ).decode("utf-8")
 
-        user_ip = str(user_ip or "127.0.0.1")
+        ip = request.headers.get("x-forwarded-for", request.client.host)
+        user_ip = ip.split(",")[0].strip()
         user_email = str(user_email)
 
-        # ✅ DOĞRU HASH FORMAT
         hash_str = (
             str(MERCHANT_ID) +
             user_ip +
@@ -43,9 +41,9 @@ def create_payment_session(order, user_email, user_ip):
             user_email +
             amount +
             user_basket +
-            "0" +          # no_installment
-            "0" +          # max_installment
-            "TL" +         # ❗ TRY DEĞİL
+            "0" +
+            "0" +
+            "TL" +
             TEST_MODE
         )
 
@@ -57,10 +55,22 @@ def create_payment_session(order, user_email, user_ip):
             ).digest()
         ).decode("utf-8")
 
-        # ✅ frontend'e dönecek sade response
         return {
-            "token": token,
-            "merchant_oid": oid
+            "merchant_id": MERCHANT_ID,
+            "user_ip": user_ip,
+            "merchant_oid": oid,
+            "email": user_email,
+            "payment_amount": amount,
+            "user_basket": user_basket,
+            "paytr_token": token,
+            "debug_on": "0",  # PROD
+            "no_installment": "0",
+            "max_installment": "0",
+            "currency": "TL",
+            "test_mode": TEST_MODE,
+            "merchant_ok_url": "https://sevimlerkuruyemis.com/success",
+            "merchant_fail_url": "https://sevimlerkuruyemis.com/fail",
+            "timeout_limit": "30"
         }
 
     except Exception as e:
