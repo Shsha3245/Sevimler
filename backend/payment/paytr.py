@@ -1,6 +1,5 @@
 import os
 import hashlib
-import base64
 import hmac
 import json
 import logging
@@ -8,7 +7,7 @@ import logging
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID")
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY")
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
-TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")  # canlıda "0" olmalı
 
 APP_ENV = os.getenv("ENV", "development")
 
@@ -18,7 +17,6 @@ MOCK_MODE = APP_ENV != "production" and not all(
 
 
 def create_payment_session(order, user_email, user_ip):
-
     if MOCK_MODE:
         return {
             "token": f"MOCK_{order.id}",
@@ -32,8 +30,8 @@ def create_payment_session(order, user_email, user_ip):
         payment_amount = int(order.total_price * 100)
         merchant_oid = str(order.id)
 
+        # Sepet formatı: [[ürün adı, fiyat (kuruş), adet], ...]
         user_basket = []
-
         for item in order.items:
             user_basket.append([
                 item.product.name,
@@ -41,9 +39,14 @@ def create_payment_session(order, user_email, user_ip):
                 item.quantity
             ])
 
-        basket_str = base64.b64encode(
-            json.dumps(user_basket, ensure_ascii=False).encode("utf-8")
-        ).decode("utf-8")
+        basket_str = json.dumps(user_basket, ensure_ascii=False)
+        basket_str = basket_str.encode("utf-8")
+        basket_str = base64.b64encode(basket_str).decode("utf-8")
+
+        # PayTR parametre sırası
+        no_installment = "0"      # taksit yapılabilir
+        max_installment = "12"    # en fazla 12 taksit
+        currency = "TRY"
 
         hash_str = (
             MERCHANT_ID +
@@ -52,19 +55,18 @@ def create_payment_session(order, user_email, user_ip):
             user_email +
             str(payment_amount) +
             basket_str +
-            "0" +
-            "0" +
-            "TRY" +
+            no_installment +
+            max_installment +
+            currency +
             TEST_MODE
         )
 
-        token = base64.b64encode(
-            hmac.new(
-                MERCHANT_KEY.encode("utf-8"),
-                (hash_str + MERCHANT_SALT).encode("utf-8"),
-                hashlib.sha256
-            ).digest()
-        ).decode("utf-8")
+        # HEX digest kullanılmalı
+        token = hmac.new(
+            MERCHANT_KEY.encode("utf-8"),
+            (hash_str + MERCHANT_SALT).encode("utf-8"),
+            hashlib.sha256
+        ).hexdigest()
 
         return {
             "token": token,
@@ -78,7 +80,6 @@ def create_payment_session(order, user_email, user_ip):
 
 
 def verify_callback(data):
-
     if MOCK_MODE:
         return True
 
@@ -93,13 +94,11 @@ def verify_callback(data):
 
         hash_str = merchant_oid + MERCHANT_SALT + status + total_amount
 
-        expected_hash = base64.b64encode(
-            hmac.new(
-                MERCHANT_KEY.encode("utf-8"),
-                hash_str.encode("utf-8"),
-                hashlib.sha256
-            ).digest()
-        ).decode("utf-8")
+        expected_hash = hmac.new(
+            MERCHANT_KEY.encode("utf-8"),
+            hash_str.encode("utf-8"),
+            hashlib.sha256
+        ).hexdigest()
 
         return hmac.compare_digest(expected_hash, received_hash)
 
