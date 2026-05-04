@@ -1,108 +1,197 @@
-import os
-import hashlib
-import base64
-import hmac
-import json
-import logging
+import React, { useState, useMemo } from 'react';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, AlertTriangle, Weight } from 'lucide-react';
 
-MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID")
-MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY")
-MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
-TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
+const Checkout = () => {
+  const { cart, total, clearCart } = useCart();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-APP_ENV = os.getenv("ENV", "development")
+  const [formData, setFormData] = useState({
+    full_name: user?.full_name || '',
+    address: '',
+    phone: '',
+    email: user?.email || '',
+  });
 
-MOCK_MODE = APP_ENV != "production" and not all(
-    [MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]
-)
+  const [status, setStatus] = useState('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
+  const isCartValid = Array.isArray(cart) && cart.length > 0;
 
-def create_payment_session(order, user_email, user_ip):
+  const totalWeight = useMemo(() => {
+    if (!isCartValid) return 0;
 
-    if MOCK_MODE:
-        return {
-            "token": f"MOCK_{order.id}",
-            "mode": "MOCK"
-        }
+    return cart.reduce(
+      (acc, item) => acc + (item.weight || 1) * item.quantity,
+      0
+    );
+  }, [cart]);
 
-    if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
-        raise Exception("PayTR credentials missing")
+  const isWeightValid = totalWeight >= 1 && totalWeight <= 100;
 
-    try:
-        payment_amount = int(order.total_price * 100)
-        merchant_oid = str(order.id)
+  const handleInputChange = (e) => {
+    setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
-        user_basket = []
+  const handleCheckout = async (e) => {
+    e.preventDefault();
 
-        for item in order.items:
-            user_basket.append([
-                item.product.name,
-                str(int(item.price_at_time * 100)),
-                item.quantity
-            ])
+    if (!isCartValid) {
+      setErrorMessage('Sepet boş');
+      return;
+    }
 
-        basket_str = base64.b64encode(
-            json.dumps(user_basket, ensure_ascii=False).encode("utf-8")
-        ).decode("utf-8")
+    if (!isWeightValid) {
+      setErrorMessage('Ağırlık 1-100 KG arası olmalı');
+      return;
+    }
 
-        hash_str = (
-            MERCHANT_ID +
-            user_ip +
-            merchant_oid +
-            user_email +
-            str(payment_amount) +
-            basket_str +
-            "0" +
-            "0" +
-            "TRY" +
-            TEST_MODE
-        )
+    setStatus('loading');
+    setErrorMessage('');
 
-        token = base64.b64encode(
-            hmac.new(
-                MERCHANT_KEY.encode("utf-8"),
-                (hash_str + MERCHANT_SALT).encode("utf-8"),
-                hashlib.sha256
-            ).digest()
-        ).decode("utf-8")
+    try {
+      const orderItems = cart.map((item) => ({
+        product_id: item.id,
+        quantity: item.quantity,
+      }));
 
-        return {
-            "token": token,
-            "merchant_oid": merchant_oid,
-            "mode": "PRODUCTION"
-        }
+      const orderRes = await api.post('/orders', {
+        ...formData,
+        items: orderItems,
+      });
 
-    except Exception as e:
-        logging.error(f"PayTR ERROR: {str(e)}", exc_info=True)
-        raise Exception("Payment failed")
+      const orderId = orderRes?.data?.id;
+      if (!orderId) throw new Error('Order oluşturulamadı');
 
+      const paymentRes = await api.post('/payment/create', {
+        order_id: orderId,
+      });
 
-def verify_callback(data):
+      const token = paymentRes?.data?.token;
 
-    if MOCK_MODE:
-        return True
+      if (!token) throw new Error('PayTR token alınamadı');
 
-    try:
-        merchant_oid = data.get("merchant_oid")
-        status = data.get("status")
-        total_amount = data.get("total_amount")
-        received_hash = data.get("hash")
+      if (paymentRes.data.mode === 'MOCK') {
+        clearCart();
+        navigate(`/success?orderId=${orderId}&mode=mock`);
+        return;
+      }
 
-        if not all([merchant_oid, status, total_amount, received_hash]):
-            return False
+      clearCart();
 
-        hash_str = merchant_oid + MERCHANT_SALT + status + total_amount
+      window.location.href =
+        `https://www.paytr.com/odeme/guvenli/${token}`;
 
-        expected_hash = base64.b64encode(
-            hmac.new(
-                MERCHANT_KEY.encode("utf-8"),
-                hash_str.encode("utf-8"),
-                hashlib.sha256
-            ).digest()
-        ).decode("utf-8")
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage(
+        err.response?.data?.detail ||
+        err.message ||
+        'Ödeme hatası'
+      );
+    }
+  };
 
-        return hmac.compare_digest(expected_hash, received_hash)
+  return (
+    <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
 
-    except Exception as e:
-        logging.error(f"Callback error: {str(e)}")
-        return False
+      <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10">
+
+        {/* FORM */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+
+          <div
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 cursor-pointer mb-6"
+          >
+            <ArrowLeft size={18} />
+            Geri Dön
+          </div>
+
+          <h2 className="text-2xl font-bold mb-6">Teslimat</h2>
+
+          <form onSubmit={handleCheckout} className="space-y-4">
+
+            <input name="full_name" placeholder="Ad Soyad" required
+              value={formData.full_name}
+              onChange={handleInputChange}
+              className="w-full border p-3 rounded-lg"
+            />
+
+            <textarea name="address" placeholder="Adres" required
+              value={formData.address}
+              onChange={handleInputChange}
+              className="w-full border p-3 rounded-lg"
+              rows={4}
+            />
+
+            <input name="phone" placeholder="Telefon" required
+              value={formData.phone}
+              onChange={handleInputChange}
+              className="w-full border p-3 rounded-lg"
+            />
+
+            <input name="email" placeholder="Email" required
+              value={formData.email}
+              onChange={handleInputChange}
+              className="w-full border p-3 rounded-lg"
+            />
+
+            <div className="flex items-center gap-2 text-sm">
+              <Weight size={16} />
+              {totalWeight.toFixed(2)} KG
+            </div>
+
+            {!isWeightValid && (
+              <p className="text-red-500 text-sm">
+                Ağırlık 1-100 KG arası olmalı
+              </p>
+            )}
+
+            {status === 'error' && (
+              <div className="bg-red-100 text-red-600 p-3 rounded flex gap-2">
+                <AlertTriangle size={16} />
+                {errorMessage}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="w-full bg-green-600 text-white py-3 rounded-lg"
+            >
+              {status === 'loading' ? 'İşleniyor...' : 'Ödemeye Git'}
+            </button>
+
+          </form>
+        </div>
+
+        {/* SUMMARY */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+
+          <h2 className="text-xl font-bold mb-4">Özet</h2>
+
+          {isCartValid && cart.map((item) => (
+            <div key={item.id} className="flex justify-between text-sm border-b py-2">
+              <span>{item.name} x {item.quantity}</span>
+              <span>{(item.price * item.quantity).toFixed(2)} ₺</span>
+            </div>
+          ))}
+
+          <div className="mt-4 font-bold flex justify-between">
+            <span>Toplam</span>
+            <span>{total.toFixed(2)} ₺</span>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default Checkout;
