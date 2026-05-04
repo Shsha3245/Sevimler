@@ -14,11 +14,11 @@ MOCK_MODE = not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT])
 
 
 # -------------------------------
-# PAYMENT SESSION
+# CREATE PAYMENT SESSION
 # -------------------------------
 def create_payment_session(order, user_email, user_ip):
 
-    # MOCK MODE (ENV eksikse güvenli fallback)
+    # MOCK MODE
     if MOCK_MODE:
         return {
             "token": f"MOCK_{order.id}",
@@ -30,16 +30,17 @@ def create_payment_session(order, user_email, user_ip):
         # SAFE AMOUNT
         # -----------------------
         try:
-            amount = int(float(order.total_price) * 100)
-        except Exception:
+            amount_raw = order.total_price or 0
+            amount = int(float(amount_raw) * 100)
+        except:
             amount = 0
 
-        oid = str(order.id)
+        merchant_oid = str(order.id)
 
         # -----------------------
         # SAFE EMAIL
         # -----------------------
-        if not user_email:
+        if not user_email or user_email.strip() == "":
             user_email = "test@example.com"
 
         # -----------------------
@@ -59,40 +60,42 @@ def create_payment_session(order, user_email, user_ip):
             for item in order.items:
                 try:
                     name = getattr(item.product, "name", "product")
-                    price = int(float(getattr(item, "price_at_time", 0) or 0) * 100)
-                    qty = int(getattr(item, "quantity", 1))
+                    price = item.price_at_time or 0
+                    qty = item.quantity or 1
 
-                    basket.append([name, str(price), qty])
-                except Exception:
+                    price = int(float(price) * 100)
+
+                    basket.append([name, str(price), int(qty)])
+                except:
                     continue
 
-        # fallback (empty basket fix)
-        if not basket:
+        # fallback (PayTR rejects empty basket sometimes)
+        if len(basket) == 0:
             basket = [["product", "0", 1]]
 
         basket_encoded = base64.b64encode(
             json.dumps(basket, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         ).decode("utf-8")
 
-        # -----------------------
-        # HASH STRING (ORDER SENSITIVE)
-        # -----------------------
+        # -------------------------------
+        # HASH STRING (CRITICAL ORDER FIXED)
+        # -------------------------------
         hash_str = (
             MERCHANT_ID +
             user_ip +
-            oid +
+            merchant_oid +
             user_email +
             str(amount) +
             basket_encoded +
-            "0" +
-            "0" +
+            "0" +   # no_installment
+            "0" +   # max_installment
             "TRY" +
             TEST_MODE
         )
 
-        # -----------------------
-        # TOKEN GENERATION
-        # -----------------------
+        # -------------------------------
+        # TOKEN
+        # -------------------------------
         token = base64.b64encode(
             hmac.new(
                 MERCHANT_KEY.encode("utf-8"),
@@ -103,7 +106,7 @@ def create_payment_session(order, user_email, user_ip):
 
         return {
             "token": token,
-            "merchant_oid": oid,
+            "merchant_oid": merchant_oid,
             "mode": "PRODUCTION"
         }
 
