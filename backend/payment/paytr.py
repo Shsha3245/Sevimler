@@ -5,92 +5,51 @@ import hashlib
 import json
 import logging
 
-logger = logging.getLogger("paytr")
-
-MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID", "")
-MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY", "")
-MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT", "")
-TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
-
-# Eğer env eksikse mock mode
-MOCK_MODE = not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT])
+MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID")
+MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY")
+MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")  # "1" test, "0" live
 
 
 def create_payment_session(order, user_email, user_ip):
 
     try:
-        # ---------------- MOCK ----------------
-        if MOCK_MODE:
-            logger.warning("PAYTR MOCK MODE ACTIVE")
-            return {
-                "token": f"MOCK_{order.id}",
-                "mode": "MOCK"
-            }
+        if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
+            raise Exception("PAYTR ENV MISSING")
 
-        # ---------------- SAFE DATA ----------------
-        merchant_oid = str(order.id)
-        payment_amount = int(float(order.total_price or 0) * 100)
+        amount = str(int(float(order.total_price) * 100))
+        oid = str(order.id)
 
-        if not user_ip:
-            user_ip = "127.0.0.1"
+        basket = []
 
-        if not user_email:
-            user_email = "noemail@example.com"
-
-        # ---------------- BASKET SAFE BUILD ----------------
-        user_basket = []
-
-        try:
-            for item in getattr(order, "items", []) or []:
-                product_name = getattr(getattr(item, "product", None), "name", "product")
-
-                price = getattr(item, "price_at_time", 0)
-                quantity = getattr(item, "quantity", 1)
-
-                price = int(float(price or 0) * 100)
-                quantity = int(quantity or 1)
-
-                user_basket.append([product_name, str(price), quantity])
-
-        except Exception as e:
-            logger.error(f"Basket build error: {e}")
-            user_basket = [["product", "100", 1]]
+        for item in order.items:
+            name = item.product.name if item.product else "urun"
+            price = str(int(float(item.price_at_time)))
+            qty = int(item.quantity or 1)
+            basket.append([name, price, qty])
 
         basket_encoded = base64.b64encode(
-            json.dumps(user_basket, ensure_ascii=False).encode("utf-8")
+            json.dumps(basket).encode("utf-8")
         ).decode("utf-8")
 
-        # ---------------- HASH STRING (PAYTR EXACT ORDER) ----------------
-        hash_str = (
-            MERCHANT_ID +
-            user_ip +
-            merchant_oid +
-            user_email +
-            str(payment_amount) +
-            basket_encoded +
-            "0" +
-            "0" +
-            "TRY" +
-            TEST_MODE
-        )
+        user_ip = user_ip or "127.0.0.1"
 
-        # ---------------- TOKEN ----------------
-        token = base64.b64encode(
+        hash_str = f"{MERCHANT_ID}{user_ip}{oid}{user_email}{amount}{basket_encoded}0{TEST_MODE}"
+
+        paytr_token = base64.b64encode(
             hmac.new(
-                MERCHANT_KEY.encode("utf-8"),
-                (hash_str + MERCHANT_SALT).encode("utf-8"),
+                MERCHANT_KEY.encode(),
+                (hash_str + MERCHANT_SALT).encode(),
                 hashlib.sha256
             ).digest()
-        ).decode("utf-8")
-
-        logger.info(f"PAYTR TOKEN GENERATED: {merchant_oid}")
+        ).decode()
 
         return {
-            "token": token,
-            "merchant_oid": merchant_oid,
-            "mode": "PRODUCTION"
+            "token": paytr_token,
+            "merchant_oid": oid,
+            "mode": "TEST" if TEST_MODE == "1" else "LIVE"
         }
 
     except Exception as e:
-        logger.error(f"PAYTR FATAL ERROR: {e}", exc_info=True)
-        raise Exception("PAYTR payment session failed")
+        logging.error(f"PAYTR ERROR: {e}", exc_info=True)
+        raise Exception("PAYTR PAYMENT FAILED")
