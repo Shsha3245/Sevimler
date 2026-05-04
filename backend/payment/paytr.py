@@ -5,97 +5,76 @@ import hashlib
 import json
 import logging
 
+logger = logging.getLogger("paytr")
+
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID", "")
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY", "")
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT", "")
-TEST_MODE = str(os.getenv("PAYTR_TEST_MODE", "1"))
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
 
+# Eğer env eksikse mock mode
 MOCK_MODE = not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT])
 
 
-# -------------------------------
-# CREATE PAYMENT SESSION
-# -------------------------------
 def create_payment_session(order, user_email, user_ip):
 
-    # MOCK MODE
-    if MOCK_MODE:
-        return {
-            "token": f"MOCK_{order.id}",
-            "mode": "MOCK"
-        }
-
     try:
-        # -----------------------
-        # SAFE AMOUNT
-        # -----------------------
-        try:
-            amount_raw = order.total_price or 0
-            amount = int(float(amount_raw) * 100)
-        except:
-            amount = 0
+        # ---------------- MOCK ----------------
+        if MOCK_MODE:
+            logger.warning("PAYTR MOCK MODE ACTIVE")
+            return {
+                "token": f"MOCK_{order.id}",
+                "mode": "MOCK"
+            }
 
+        # ---------------- SAFE DATA ----------------
         merchant_oid = str(order.id)
+        payment_amount = int(float(order.total_price or 0) * 100)
 
-        # -----------------------
-        # SAFE EMAIL
-        # -----------------------
-        if not user_email or user_email.strip() == "":
-            user_email = "test@example.com"
-
-        # -----------------------
-        # SAFE IP
-        # -----------------------
         if not user_ip:
             user_ip = "127.0.0.1"
-        else:
-            user_ip = user_ip.split(",")[0].strip()
 
-        # -----------------------
-        # SAFE BASKET
-        # -----------------------
-        basket = []
+        if not user_email:
+            user_email = "noemail@example.com"
 
-        if hasattr(order, "items") and order.items:
-            for item in order.items:
-                try:
-                    name = getattr(item.product, "name", "product")
-                    price = item.price_at_time or 0
-                    qty = item.quantity or 1
+        # ---------------- BASKET SAFE BUILD ----------------
+        user_basket = []
 
-                    price = int(float(price) * 100)
+        try:
+            for item in getattr(order, "items", []) or []:
+                product_name = getattr(getattr(item, "product", None), "name", "product")
 
-                    basket.append([name, str(price), int(qty)])
-                except:
-                    continue
+                price = getattr(item, "price_at_time", 0)
+                quantity = getattr(item, "quantity", 1)
 
-        # fallback (PayTR rejects empty basket sometimes)
-        if len(basket) == 0:
-            basket = [["product", "0", 1]]
+                price = int(float(price or 0) * 100)
+                quantity = int(quantity or 1)
+
+                user_basket.append([product_name, str(price), quantity])
+
+        except Exception as e:
+            logger.error(f"Basket build error: {e}")
+            user_basket = [["product", "100", 1]]
 
         basket_encoded = base64.b64encode(
-            json.dumps(basket, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            json.dumps(user_basket, ensure_ascii=False).encode("utf-8")
         ).decode("utf-8")
 
-        # -------------------------------
-        # HASH STRING (CRITICAL ORDER FIXED)
-        # -------------------------------
+        # ---------------- HASH STRING (PAYTR EXACT ORDER) ----------------
         hash_str = (
             MERCHANT_ID +
             user_ip +
             merchant_oid +
             user_email +
-            str(amount) +
+            str(payment_amount) +
             basket_encoded +
-            "0" +   # no_installment
-            "0" +   # max_installment
+            "0" +
+            "0" +
             "TRY" +
             TEST_MODE
         )
 
-        # -------------------------------
-        # TOKEN
-        # -------------------------------
+        # ---------------- TOKEN ----------------
         token = base64.b64encode(
             hmac.new(
                 MERCHANT_KEY.encode("utf-8"),
@@ -104,6 +83,8 @@ def create_payment_session(order, user_email, user_ip):
             ).digest()
         ).decode("utf-8")
 
+        logger.info(f"PAYTR TOKEN GENERATED: {merchant_oid}")
+
         return {
             "token": token,
             "merchant_oid": merchant_oid,
@@ -111,5 +92,5 @@ def create_payment_session(order, user_email, user_ip):
         }
 
     except Exception as e:
-        logging.error(f"PAYTR ERROR: {str(e)}", exc_info=True)
-        raise Exception("PAYTR PAYMENT FAILED")
+        logger.error(f"PAYTR FATAL ERROR: {e}", exc_info=True)
+        raise Exception("PAYTR payment session failed")
