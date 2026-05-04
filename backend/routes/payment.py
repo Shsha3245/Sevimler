@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import update
 
 import database, auth, models
@@ -27,11 +27,23 @@ def create_payment(
     user=Depends(auth.get_current_user)
 ):
     # =========================
-    # ORDER FETCH
+    # ORDER FETCH (RELATION FIX)
     # =========================
-    order = db.query(models.Order).filter(
-        models.Order.id == payload.order_id
-    ).first()
+    order = (
+        db.query(models.Order)
+        .options(joinedload(models.Order.items))
+        .filter(models.Order.id == payload.order_id)
+        .first()
+    )
+
+    # =========================
+    # DEBUG (DOĞRU YER)
+    # =========================
+    print("ORDER:", order)
+    print("ORDER ITEMS:", getattr(order, "items", None))
+    print("USER:", user)
+    print("EMAIL:", getattr(user, "email", None))
+    print("IP:", request.client.host)
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -43,20 +55,19 @@ def create_payment(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     # =========================
-    # EMAIL CHECK (STRICT)
+    # EMAIL (SIMPLE & SAFE)
     # =========================
-    user_email = getattr(user, "email", None)
+    user_email = user.email
     if not user_email:
         raise HTTPException(status_code=400, detail="User email missing")
 
     # =========================
-    # IDEMPOTENCY CHECK (CRITICAL FIX)
+    # IDEMPOTENCY
     # =========================
     if order.status == "PAID":
         raise HTTPException(status_code=400, detail="Order already paid")
 
     if order.status == "PAYMENT_INITIATED":
-        # aynı ödeme tekrar istenirse yeniden oluşturma
         return paytr.create_payment_session(
             order=order,
             user_email=user_email,
@@ -74,7 +85,7 @@ def create_payment(
     )
 
     # =========================
-    # ATOMIC STATUS UPDATE (SAFE)
+    # STATUS UPDATE
     # =========================
     db.execute(
         update(models.Order)
@@ -83,23 +94,19 @@ def create_payment(
     )
     db.commit()
 
-    # refresh order state
     db.refresh(order)
 
     # =========================
-    # PAYMENT SESSION
+    # PAYTR CALL
     # =========================
     try:
-        response = paytr.create_payment_session(
+        return paytr.create_payment_session(
             order=order,
             user_email=user_email,
             user_ip=user_ip
         )
 
-        return response
-
     except Exception as e:
-        # rollback state on failure
         db.execute(
             update(models.Order)
             .where(models.Order.id == order.id)
