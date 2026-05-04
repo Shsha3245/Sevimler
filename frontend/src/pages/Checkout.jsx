@@ -73,6 +73,15 @@ const Checkout = () => {
 
       const token = paymentRes?.data?.token;
 
+      console.log("TOKEN:", token);
+
+      if (!token) {
+        throw new Error("TOKEN YOK");
+      }
+      
+      window.location.href =
+        `https://www.paytr.com/odeme/guvenli/${token}`;
+
       if (!token) throw new Error('PayTR token alınamadı');
 
       if (paymentRes.data.mode === 'MOCK') {
