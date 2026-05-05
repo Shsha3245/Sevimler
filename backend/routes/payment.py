@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import update
-
-import database, auth, models
+import database, models
 from payment import paytr
 
 router = APIRouter(prefix="/payment", tags=["payment"])
@@ -15,10 +13,15 @@ class PaymentCreateRequest(BaseModel):
 def create_payment(
     payload: PaymentCreateRequest,
     request: Request,
-    db: Session = Depends(database.get_db),
-    user=Depends(auth.get_current_user)
+    db: Session = Depends(database.get_db)
 ):
-    # Siparişi, kalemlerini ve o kalemlere ait ürün isimlerini tek seferde çekiyoruz
+    """
+    Ödeme oturumunu başlatır. 
+    Artık Depends(auth.get_current_user) kullanmıyoruz, 
+    böylece misafir kullanıcılar da ödeme yapabilir.
+    """
+    
+    # 1. Siparişi çek (İlişkili ürünleri ve sipariş kalemlerini dahil ederek)
     order = (
         db.query(models.Order)
         .options(
@@ -29,39 +32,42 @@ def create_payment(
         .first()
     )
 
+    # 2. Güvenlik ve Durum Kontrolleri
     if not order:
         raise HTTPException(status_code=404, detail="Sipariş bulunamadı.")
 
-    if order.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok.")
-
-    user_email = user.email
-    if not user_email:
-        raise HTTPException(status_code=400, detail="Kullanıcı e-posta adresi eksik.")
-
     if order.status == "PAID":
-        raise HTTPException(status_code=400, detail="Bu sipariş zaten ödendi.")
+        raise HTTPException(status_code=400, detail="Bu sipariş zaten ödenmiş.")
 
-    # Durumu güncelle ve kaydet
+    # 3. E-posta Belirleme
+    # Misafir alışverişinde e-posta sipariş tablosunda kayıtlı olmalıdır.
+    # Eğer modelinizde 'email' alanı yoksa, telefon bilgisini kullanıyoruz.
+    user_email = getattr(order, 'email', None)
+    if not user_email:
+        # Eğer e-posta yoksa telefon numarasını e-posta formatına sokup PayTR'ye gönderiyoruz
+        user_email = f"{order.phone}@guest.com"
+
+    # 4. Sipariş Durumunu Güncelle
     order.status = "PAYMENT_INITIATED"
     db.commit()
     db.refresh(order)
 
     try:
-        # paytr.py içindeki fonksiyonu 'request' nesnesiyle çağırıyoruz
+        # 5. PayTR Session Verilerini Hazırla (paytr.py'yi çağırır)
         payment_data = paytr.create_payment_session(
             order=order,
             user_email=user_email,
             request=request
         )
+        
         return payment_data
 
     except Exception as e:
-        # Hata durumunda durumu PENDING'e çek ki kullanıcı tekrar deneyebilsin
+        # Hata durumunda durumu tekrar PENDING'e çek ki kullanıcı tekrar ödemeyi deneyebilsin
         order.status = "PENDING"
         db.commit()
-        print(f"ÖDEME HATASI: {str(e)}") # Terminalde hatayı görmek için
+        print(f"PAYMENT ROUTE ERROR: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Ödeme başlatılamadı: {str(e)}"
+            status_code=500, 
+            detail=f"Ödeme oturumu oluşturulamadı: {str(e)}"
         )
