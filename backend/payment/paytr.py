@@ -9,36 +9,37 @@ MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY")
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT")
 TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1")
 
-
 def create_payment_session(order, user_email, request):
+    # Çevresel değişken kontrolü
     if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
-        raise Exception("PAYTR ENV MISSING")
+        raise Exception("PAYTR ENV MISSING: Lütfen .env dosyanızı kontrol edin.")
 
     try:
-        # Fiyatı kuruş cinsinden tam sayıya çeviriyoruz
+        # Fiyatı kuruş cinsinden tam sayıya çeviriyoruz (Örn: 10.50 -> 1050)
         amount = str(int(float(order.total_price) * 100))
         oid = str(order.id)
 
+        # Sepet Oluşturma
         basket = []
         for item in order.items:
-            name = str(getattr(item.product, "name", "urun"))
-            # PayTR her bir dizi elemanının string olmasını tercih eder
+            # Ürün ismi yoksa 'Urun' yaz, fiyat ve adet mutlaka string olmalı
+            name = str(getattr(item.product, "name", "Urun"))
             price = str(float(item.price_at_time))
-            qty = str(int(item.quantity or 1)) # String'e çevirmek daha güvenli
+            qty = str(int(item.quantity or 1))
             basket.append([name, price, qty])
 
-        # PayTR JSON listesini base64 bekler
+        # PayTR sepeti JSON listesinin base64 halini bekler
         user_basket = base64.b64encode(
             json.dumps(basket).encode("utf-8")
         ).decode("utf-8")
 
-        # IP Çekme mantığını sağlama alalım
+        # IP Adresini Güvenli Çekme
         xff = request.headers.get("x-forwarded-for")
         user_ip = xff.split(",")[0].strip() if xff else request.client.host
         
         user_email = str(user_email)
 
-        # Hash dizilimi (Buradaki sıra kritiktir, değiştirme)
+        # PayTR Token Oluşturma Dizilimi (Sıralama Değiştirilemez)
         hash_str = (
             str(MERCHANT_ID) +
             user_ip +
@@ -68,7 +69,7 @@ def create_payment_session(order, user_email, request):
             "payment_amount": amount,
             "user_basket": user_basket,
             "paytr_token": token,
-            "debug_on": "1",  # Hata ayıklama için geçici olarak 1 yapabilirsin
+            "debug_on": "1", # Hata alırsan PayTR panelinde detay görmek için 1 kalsın
             "no_installment": "0",
             "max_installment": "0",
             "currency": "TL",
@@ -79,4 +80,4 @@ def create_payment_session(order, user_email, request):
         }
 
     except Exception as e:
-        raise Exception(f"PAYTR ERROR: {str(e)}")
+        raise Exception(f"PayTR Hazırlık Hatası: {str(e)}")
