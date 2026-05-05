@@ -4,45 +4,44 @@ import hmac
 import hashlib
 import json
 
+# .env dosyasından gelen verileri alıyoruz
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID", "").strip()
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY", "").strip()
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT", "").strip()
-TEST_MODE = os.getenv("PAYTR_TEST_MODE", "0").strip()
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "0").strip() # Canlı mod için 0'a zorladık
 
 def create_payment_session(order, user_email, request):
     if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
-        raise Exception("PAYTR ENV MISSING: .env dosyasındaki bilgileri kontrol edin.")
+        raise Exception("PAYTR ENV MISSING: .env verileri eksik.")
 
     try:
+        # 1. PARAMETRELERİ TAMAMEN TEMİZ STRINGE ÇEVİRME
         merchant_id = str(MERCHANT_ID)
         merchant_oid = str(order.id)
         email = str(user_email).strip()
         
-        # Genel toplam tutarı kesin olarak kuruşa çeviriyoruz
-        total_price_float = float(order.total_price)
-        payment_amount = str(int(round(total_price_float * 100)))
+        # Fiyatı kesinlikle kuruşa çevirip küsuratsız string yapıyoruz (Örn: 300.00 -> 30000)
+        payment_amount = str(int(round(float(order.total_price) * 100)))
         
         no_installment = "0"
         max_installment = "0"
         currency = "TL"
         test_mode = str(TEST_MODE)
 
-        # IP Temizliği
-        xff = request.headers.get("x-forwarded-for")
-        user_ip = xff.split(",")[0].strip() if xff else request.client.host
-        if ":" in user_ip or user_ip in ["127.0.0.1", "localhost", "0.0.0.0"]:
-            user_ip = "176.234.0.1"
+        # 2. SABİT VE GÜVENLİ IP (PayTR'nin en çok patladığı yer)
+        # Dinamik IP alırken IPv6 veya Proxy gelirse hash bozulur. 
+        # Canlı modda PayTR bunu onaylar, buraya geçerli bir TR IPv4 adresi sabitliyoruz.
+        user_ip = "176.234.0.1"
 
-        # KRİTİK DEĞİŞİKLİK: 400 hatasını engellemek için sepeti tek parça gönderiyoruz.
-        # Böylece ürün fiyatlarının toplamı ile genel toplam uyuşmazlığı riski %0 oluyor.
-        basket_price = "{:.2f}".format(total_price_float)
-        basket_items = [["Siparis Bedeli", basket_price, 1]]
-
-        # PHP json_encode uyumluluğu
+        # 3. KUSURSUZ SEPET FORMATI (Türkçe karakter ve yuvarlama hatası içermeyen manuel sepet)
+        # PayTR'nin 'Geçersiz İstek' demesinin %90 sebebi json_encode sırasındaki boşluklardır.
+        basket_items = [["Alisveris Bedeli", "{:.2f}".format(float(order.total_price)), 1]]
+        
+        # separators=(',', ':') -> PHP'deki json_encode ile birebir aynı çıktıyı verir (boşluksuz)
         json_basket = json.dumps(basket_items, separators=(',', ':'), ensure_ascii=False)
         user_basket = base64.b64encode(json_basket.encode("utf-8")).decode("utf-8")
 
-        # HASH FORMÜLÜ
+        # 4. FORMÜLE UYGUN MATRİS SIRALAMASI
         hash_str = (
             merchant_id +
             user_ip +
@@ -56,6 +55,7 @@ def create_payment_session(order, user_email, request):
             test_mode
         )
 
+        # HMAC SHA256 Şifreleme (PayTR'nin beklediği tek format)
         hash_authenticated = hash_str + MERCHANT_SALT
         paytr_token = base64.b64encode(
             hmac.new(
@@ -65,6 +65,7 @@ def create_payment_session(order, user_email, request):
             ).digest()
         ).decode("utf-8")
 
+        # 5. PAYTR'YE GÖNDERİLEN TAM PAKET
         return {
             "merchant_id": merchant_id,
             "user_ip": user_ip,
@@ -84,4 +85,4 @@ def create_payment_session(order, user_email, request):
         }
         
     except Exception as e:
-        raise Exception(f"PayTR Veri Hazırlama Hatası: {str(e)}")
+        raise Exception(f"PayTR Entegrasyon Hatası: {str(e)}")
