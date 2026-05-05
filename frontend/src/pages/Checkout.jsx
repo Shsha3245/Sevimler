@@ -3,7 +3,6 @@ import { useCart } from '../context/CartContext';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import axios from 'axios'; // Eğer api nesnesi login istiyorsa ham axios ile aşacağız
 
 const Checkout = () => {
   const { cart, total, clearCart } = useCart();
@@ -38,7 +37,6 @@ const Checkout = () => {
     setStatus('loading');
     setErrorMessage('');
 
-    // Şehir ve ilçe kontrolü
     if (!formData.city || !formData.district) {
       setStatus('error');
       setErrorMessage("Lütfen İl ve İlçe seçimini yapın.");
@@ -56,13 +54,9 @@ const Checkout = () => {
 
       console.log("SENDING PAYLOAD TO ORDERS:", orderPayload);
 
-      // KRİTİK: Eğer api nesneniz (api.post) interceptor yüzünden login sayfasına atıyorsa 
-      // burayı geçici olarak ham axios çağrısına (axios.post('URL/orders', ...)) çevirebilirsiniz.
       const orderRes = await api.post('/orders', orderPayload);
-      
       console.log("ORDER CREATED SUCCESS:", orderRes.data);
 
-      // 2. PayTR Token al
       const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
@@ -73,28 +67,27 @@ const Checkout = () => {
         setIframeToken(paymentRes.data.paytr_token);
         clearCart();
       } else {
-        throw new Error("PayTR'den token dönmedi. API yanıtını kontrol edin.");
+        throw new Error("PayTR'den token dönmedi.");
       }
 
     } catch (err) {
       console.error("CHECKOUT ERROR DETAILS:", err);
       setStatus('error');
-      
-      // Backend'den gelen gerçek hatayı ekrana basıyoruz ki kör uçuşu yapmayalım
       const backendError = err.response?.data?.detail || err.message || "Bir hata oluştu.";
       setErrorMessage(`Ödeme Başlatılamadı: ${backendError}`);
     }
   };
 
+  // KRİTİK DEĞİŞİKLİK BURADA: 
+  // PayTR tokenı içerisindeki '/' ve '+' işaretleri iframe URL'ini bozmasın diye encodeURIComponent kullanıyoruz.
   if (iframeToken) {
     return (
       <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
         <div className="bg-blue-50 p-4 rounded-md mb-4 text-sm text-blue-700">
           Güvenli ödeme sayfasına yönlendiriliyorsunuz, lütfen bekleyiniz...
         </div>
-        {/* PayTR iframe src linkinde 'token' yerine doğrudan iframeToken'ın kendisi basılmalı */}
         <iframe 
-          src={`https://www.paytr.com/odeme/guvenli/${iframeToken}`} 
+          src={`https://www.paytr.com/odeme/guvenli/${encodeURIComponent(iframeToken)}`} 
           id="paytriframe" 
           frameBorder="0" 
           scrolling="no" 
@@ -129,7 +122,7 @@ const Checkout = () => {
               <option value="">İlçe Seçiniz</option>
               {formData.city === 'İzmir' && <option value="Bornova">Bornova</option>}
               {formData.city === 'İzmir' && <option value="Konak">Konak</option>}
-              {formData.city === 'İstanbul' && <option value="Körfez">Kadıköy</option>}
+              {formData.city === 'İstanbul' && <option value="Kadıköy">Kadıköy</option>}
               <option value="Merkez">Merkez/Diğer</option>
             </select>
           </div>
