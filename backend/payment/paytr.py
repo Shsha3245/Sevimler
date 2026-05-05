@@ -4,7 +4,6 @@ import hmac
 import hashlib
 import json
 
-# .env bilgilerini alırken sağındaki solundaki boşlukları strip() ile temizliyoruz
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID", "").strip()
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY", "").strip()
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT", "").strip()
@@ -12,33 +11,34 @@ TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1").strip()
 
 def create_payment_session(order, user_email, request):
     """
-    PayTR Iframe API için kurallara %100 uygun token ve veri seti hazırlar.
+    PayTR Iframe API için IPv4 korumalı veri seti hazırlar.
     """
     if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
         raise Exception("PAYTR ENV MISSING: .env dosyasındaki bilgileri kontrol edin.")
 
     try:
-        # 1. PARAMETRELER (Kesinlikle string ve temiz olmalı)
         merchant_id = str(MERCHANT_ID)
         merchant_oid = str(order.id)
         email = str(user_email).strip()
-        payment_amount = str(int(float(order.total_price) * 100)) # Kuruş hesabı (Örn: 285 TL -> 28500)
+        payment_amount = str(int(float(order.total_price) * 100))
         
         no_installment = "0"
         max_installment = "0"
         currency = "TL"
         test_mode = str(TEST_MODE)
 
-        # 2. IP ADRESİ TESPİTİ
+        # IP ADRESİ TESPİTİ (IPv6 Korumalı)
         xff = request.headers.get("x-forwarded-for")
         user_ip = xff.split(",")[0].strip() if xff else request.client.host
-        if user_ip in ["127.0.0.1", "::1", "localhost", "0.0.0.0"]:
-            user_ip = "8.8.8.8" # Localhostta ise PayTR hata vermesin diye sahte dış IP
+        
+        # KOPMA NOKTASI BURASI: Eğer IP adresi localhost ise veya IPv6 (içinde iki nokta üst üste varsa) 
+        # PayTR patlamasın diye standart bir IPv4 adresi atıyoruz.
+        if ":" in user_ip or user_ip in ["127.0.0.1", "localhost", "0.0.0.0"]:
+            user_ip = "176.234.0.1" # Standart bir Türkiye IPv4 adresi
 
-        # 3. SEPET OLUŞTURMA (JSON formatı PHP json_encode ile birebir eşleşmeli)
+        # SEPET OLUŞTURMA
         basket_items = []
         for item in order.items:
-            # PayTR sepet isimlerinde özel karakter veya tırnak istemez
             name = str(getattr(item.product, "name", "Urun")).replace('"', '').replace("'", "")
             price = "{:.2f}".format(float(item.price_at_time))
             qty = int(item.quantity or 1)
@@ -47,11 +47,10 @@ def create_payment_session(order, user_email, request):
         if not basket_items:
             basket_items.append(["Alisveris Tutari", "{:.2f}".format(float(order.total_price)), 1])
 
-        # Boşluksuz JSON tespiti ve Base64 encode
         json_basket = json.dumps(basket_items, separators=(',', ':'), ensure_ascii=False)
         user_basket = base64.b64encode(json_basket.encode("utf-8")).decode("utf-8")
 
-        # 4. TOKEN OLUŞTURMA (PayTR Formülü - Sıralama Hayatidir)
+        # TOKEN OLUŞTURMA
         hash_str = (
             merchant_id +
             user_ip +
@@ -65,7 +64,6 @@ def create_payment_session(order, user_email, request):
             test_mode
         )
 
-        # HMAC SHA256 şifreleme zinciri
         hash_authenticated = hash_str + MERCHANT_SALT
         paytr_token = base64.b64encode(
             hmac.new(
@@ -75,7 +73,6 @@ def create_payment_session(order, user_email, request):
             ).digest()
         ).decode("utf-8")
 
-        # 5. PAYTR'NİN BEKLEDİĞİ TAM DATA PAKETİ
         return {
             "merchant_id": merchant_id,
             "user_ip": user_ip,
