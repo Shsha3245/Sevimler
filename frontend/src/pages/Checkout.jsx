@@ -52,16 +52,11 @@ const Checkout = () => {
         items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
       };
 
-      console.log("SENDING PAYLOAD TO ORDERS:", orderPayload);
-
-      const orderRes = await api.post('/orders', orderPayload);
-      console.log("ORDER CREATED SUCCESS:", orderRes.data);
-
-      const paymentRes = await api.post('/payment/create', { 
+      // Yönlendirmeyi önlemek için backend endpoint'lerinin sonuna eğik çizgi (/) ekledik
+      const orderRes = await api.post('/orders/', orderPayload);
+      const paymentRes = await api.post('/payment/create/', { 
         order_id: orderRes.data.id 
       });
-
-      console.log("PAYTR SESSION SUCCESS:", paymentRes.data);
 
       if (paymentRes.data && paymentRes.data.paytr_token) {
         setIframeToken(paymentRes.data.paytr_token);
@@ -78,10 +73,9 @@ const Checkout = () => {
     }
   };
 
-  // PayTR Script Entegrasyonu: Token geldiğinde PayTR kütüphanesini dinamik olarak yükler
+  // PayTR Resmi iFrame Resizer Scriptini Yüklüyoruz
   useEffect(() => {
     if (iframeToken) {
-      // Eğer sayfada daha önceden kalma script varsa temizle
       const existingScript = document.getElementById('paytr-script');
       if (existingScript) existingScript.remove();
 
@@ -95,25 +89,49 @@ const Checkout = () => {
           window.iFrameResize({}, '#paytriframe');
         }
       };
-
       document.body.appendChild(script);
     }
   }, [iframeToken]);
 
-  // Token başarıyla oluşturulduysa, dökümantasyona en uygun iframe render metodu
+  // PayTR'nin Gerçek Çalışma Biçimi: Token geldiğinde gizli bir HTML formu oluşturup 
+  // hedefi (target) iframe olacak şekilde otomatik POST etmek zorundayız.
+  useEffect(() => {
+    if (iframeToken) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://www.paytr.com/odeme/guvenli'; // PayTR'nin resmi POST adresi
+      form.target = 'paytriframe'; // Çıktıyı aşağıdaki iframe'e basacak
+
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'token';
+      input.value = iframeToken;
+
+      form.appendChild(input);
+      document.body.appendChild(form);
+      
+      // Formu otomatik gönderiyoruz
+      form.submit();
+      
+      // Temizlik
+      form.remove();
+    }
+  }, [iframeToken]);
+
   if (iframeToken) {
     return (
       <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
         <div className="bg-emerald-50 p-4 rounded-md mb-6 text-sm text-emerald-800 border border-emerald-200 shadow-sm">
-          Siparişiniz başarıyla oluşturuldu. Güvenli PayTR ödeme ekranına bağlanıyorsunuz...
+          Siparişiniz başarıyla oluşturuldu. Güvenli ödeme ekranı yükleniyor...
         </div>
-        <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
+          {/* src özelliğini boş bırakıyoruz, yukarıdaki otomatik POST formu burayı dolduracak */}
           <iframe 
-            src={`https://www.paytr.com/odeme/guvenli/${iframeToken}`} 
+            name="paytriframe"
             id="paytriframe" 
             frameBorder="0" 
             scrolling="no" 
-            className="w-full min-h-[600px] border-none"
+            className="w-full min-h-[650px] border-none"
           ></iframe>
         </div>
       </div>
