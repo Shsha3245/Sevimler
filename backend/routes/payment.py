@@ -71,7 +71,7 @@ def create_payment(
         return paytr.create_payment_session(
             order=order,
             user_email=user_email,
-            user_ip=request.client.host
+            request=request
         )
 
     # =========================
