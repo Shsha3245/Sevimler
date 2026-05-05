@@ -8,17 +8,9 @@ from payment import paytr
 
 router = APIRouter(prefix="/payment", tags=["payment"])
 
-
-# =========================
-# REQUEST MODEL
-# =========================
 class PaymentCreateRequest(BaseModel):
     order_id: int
 
-
-# =========================
-# CREATE PAYMENT SESSION
-# =========================
 @router.post("/create")
 def create_payment(
     payload: PaymentCreateRequest,
@@ -26,95 +18,50 @@ def create_payment(
     db: Session = Depends(database.get_db),
     user=Depends(auth.get_current_user)
 ):
-    # =========================
-    # ORDER FETCH (RELATION FIX)
-    # =========================
+    # Siparişi, kalemlerini ve o kalemlere ait ürün isimlerini tek seferde çekiyoruz
     order = (
         db.query(models.Order)
-        .options(joinedload(models.Order.items))
+        .options(
+            joinedload(models.Order.items)
+            .joinedload(models.OrderItem.product)
+        )
         .filter(models.Order.id == payload.order_id)
         .first()
     )
 
-    # =========================
-    # DEBUG (DOĞRU YER)
-    # =========================
-    print("ORDER:", order)
-    print("ORDER ITEMS:", getattr(order, "items", None))
-    print("USER:", user)
-    print("EMAIL:", getattr(user, "email", None))
-    print("IP:", request.client.host)
-
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail="Sipariş bulunamadı.")
 
-    # =========================
-    # OWNERSHIP CHECK
-    # =========================
     if order.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok.")
 
-    # =========================
-    # EMAIL (SIMPLE & SAFE)
-    # =========================
     user_email = user.email
     if not user_email:
-        raise HTTPException(status_code=400, detail="User email missing")
+        raise HTTPException(status_code=400, detail="Kullanıcı e-posta adresi eksik.")
 
-    # =========================
-    # IDEMPOTENCY
-    # =========================
     if order.status == "PAID":
-        raise HTTPException(status_code=400, detail="Order already paid")
+        raise HTTPException(status_code=400, detail="Bu sipariş zaten ödendi.")
 
-    if order.status == "PAYMENT_INITIATED":
-        return paytr.create_payment_session(
+    # Durumu güncelle ve kaydet
+    order.status = "PAYMENT_INITIATED"
+    db.commit()
+    db.refresh(order)
+
+    try:
+        # paytr.py içindeki fonksiyonu 'request' nesnesiyle çağırıyoruz
+        payment_data = paytr.create_payment_session(
             order=order,
             user_email=user_email,
             request=request
         )
-
-    # =========================
-    # IP SAFE EXTRACTION
-    # =========================
-    xff = request.headers.get("x-forwarded-for")
-    user_ip = (
-        xff.split(",")[0].strip()
-        if xff
-        else request.client.host
-    )
-
-    # =========================
-    # STATUS UPDATE
-    # =========================
-    db.execute(
-        update(models.Order)
-        .where(models.Order.id == order.id)
-        .values(status="PAYMENT_INITIATED")
-    )
-    db.commit()
-
-    db.refresh(order)
-
-    # =========================
-    # PAYTR CALL
-    # =========================
-    try:
-        return paytr.create_payment_session(
-            order=order,
-            user_email=user_email,
-            user_ip=user_ip
-        )
+        return payment_data
 
     except Exception as e:
-        db.execute(
-            update(models.Order)
-            .where(models.Order.id == order.id)
-            .values(status="PENDING")
-        )
+        # Hata durumunda durumu PENDING'e çek ki kullanıcı tekrar deneyebilsin
+        order.status = "PENDING"
         db.commit()
-
+        print(f"ÖDEME HATASI: {str(e)}") # Terminalde hatayı görmek için
         raise HTTPException(
             status_code=500,
-            detail=f"Payment init failed: {str(e)}"
+            detail=f"Ödeme başlatılamadı: {str(e)}"
         )
