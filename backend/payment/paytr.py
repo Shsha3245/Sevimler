@@ -10,9 +10,6 @@ MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT", "").strip()
 TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1").strip()
 
 def create_payment_session(order, user_email, request):
-    """
-    PayTR Iframe API için IPv4 korumalı veri seti hazırlar.
-    """
     if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
         raise Exception("PAYTR ENV MISSING: .env dosyasındaki bilgileri kontrol edin.")
 
@@ -20,37 +17,32 @@ def create_payment_session(order, user_email, request):
         merchant_id = str(MERCHANT_ID)
         merchant_oid = str(order.id)
         email = str(user_email).strip()
-        payment_amount = str(int(float(order.total_price) * 100))
+        
+        # Genel toplam tutarı kesin olarak kuruşa çeviriyoruz
+        total_price_float = float(order.total_price)
+        payment_amount = str(int(round(total_price_float * 100)))
         
         no_installment = "0"
         max_installment = "0"
         currency = "TL"
         test_mode = str(TEST_MODE)
 
-        # IP ADRESİ TESPİTİ (IPv6 Korumalı)
+        # IP Temizliği
         xff = request.headers.get("x-forwarded-for")
         user_ip = xff.split(",")[0].strip() if xff else request.client.host
-        
-        # KOPMA NOKTASI BURASI: Eğer IP adresi localhost ise veya IPv6 (içinde iki nokta üst üste varsa) 
-        # PayTR patlamasın diye standart bir IPv4 adresi atıyoruz.
         if ":" in user_ip or user_ip in ["127.0.0.1", "localhost", "0.0.0.0"]:
-            user_ip = "176.234.0.1" # Standart bir Türkiye IPv4 adresi
+            user_ip = "176.234.0.1"
 
-        # SEPET OLUŞTURMA
-        basket_items = []
-        for item in order.items:
-            name = str(getattr(item.product, "name", "Urun")).replace('"', '').replace("'", "")
-            price = "{:.2f}".format(float(item.price_at_time))
-            qty = int(item.quantity or 1)
-            basket_items.append([name, price, qty])
+        # KRİTİK DEĞİŞİKLİK: 400 hatasını engellemek için sepeti tek parça gönderiyoruz.
+        # Böylece ürün fiyatlarının toplamı ile genel toplam uyuşmazlığı riski %0 oluyor.
+        basket_price = "{:.2f}".format(total_price_float)
+        basket_items = [["Siparis Bedeli", basket_price, 1]]
 
-        if not basket_items:
-            basket_items.append(["Alisveris Tutari", "{:.2f}".format(float(order.total_price)), 1])
-
+        # PHP json_encode uyumluluğu
         json_basket = json.dumps(basket_items, separators=(',', ':'), ensure_ascii=False)
         user_basket = base64.b64encode(json_basket.encode("utf-8")).decode("utf-8")
 
-        # TOKEN OLUŞTURMA
+        # HASH FORMÜLÜ
         hash_str = (
             merchant_id +
             user_ip +
