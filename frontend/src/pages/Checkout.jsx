@@ -33,7 +33,7 @@ const Checkout = () => {
   };
 
   const handleCheckout = async (e) => {
-    e.preventDefault(); // Tarayıcının sayfayı yenilemesini veya başka yere post etmesini engeller
+    e.preventDefault();
     e.stopPropagation();
     
     console.log("BUTONA BASILDI - handleCheckout TETİKLENDİ!");
@@ -57,7 +57,6 @@ const Checkout = () => {
 
       console.log("1. BACKEND'E GİDEN SİPARİŞ PAKETİ:", orderPayload);
 
-      // Doğrudan backend yönlendirmesiz endpoint çağrısı
       const orderRes = await api.post('/orders/', orderPayload);
       console.log("2. SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
 
@@ -84,7 +83,7 @@ const Checkout = () => {
     }
   };
 
-  // PayTR Script Entegrasyonu
+  // PayTR Script Entegrasyonu (Boyutlandırıcı)
   useEffect(() => {
     if (iframeToken) {
       const existingScript = document.getElementById('paytr-script');
@@ -104,38 +103,41 @@ const Checkout = () => {
     }
   }, [iframeToken]);
 
-  // Gizli Form Post Tetikleyicisi
-  useEffect(() => {
-    if (iframeToken) {
-      console.log("GİZLİ FORM PAYTR'YE POST EDİLİYOR...");
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://www.paytr.com/odeme/guvenli';
-      form.target = 'paytriframe';
+  // Tarayıcı ve DOM engellerini aşmak için srcDoc HTML şablonu oluşturuyoruz
+  const getIframeHtml = (token) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>PayTR</title>
+        </head>
+        <body style="margin:0; padding:0;">
+          <form id="paytr_form" method="POST" action="https://www.paytr.com/odeme/guvenli">
+            <input type="hidden" name="token" value="${token}" />
+          </form>
+          <script type="text/javascript">
+            // DOM tamamen hazır olduğunda formu anında ve güvenle post et
+            window.onload = function() {
+              document.getElementById('paytr_form').submit();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+  };
 
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'token';
-      input.value = iframeToken;
-
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-      form.remove();
-    }
-  }, [iframeToken]);
-
-  // Eğer token varsa sadece iframe'i göster
   if (iframeToken) {
     return (
       <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
         <div className="bg-emerald-50 p-4 rounded-md mb-6 text-sm text-emerald-800 border border-emerald-200 shadow-sm">
-          Siparişiniz alındı. Ödeme ekranı yükleniyor...
+          Siparişiniz alındı. Güvenli ödeme ekranı yükleniyor...
         </div>
         <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
+          {/* srcDoc kullanarak tüm süreci asenkron risklerden arındırıp tarayıcı içinde izole çalıştırıyoruz */}
           <iframe 
-            name="paytriframe"
             id="paytriframe" 
+            name="paytriframe"
+            srcDoc={getIframeHtml(iframeToken)}
             frameBorder="0" 
             scrolling="no" 
             className="w-full min-h-[650px] border-none"
@@ -149,7 +151,7 @@ const Checkout = () => {
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
       <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Teslimat Bilgileri</h2>
-        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksikosiz doldurun.</p>
+        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.</p>
 
         {status === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-start gap-3">
@@ -158,7 +160,6 @@ const Checkout = () => {
           </div>
         )}
 
-        {/* Formun dışarıya post edilmesini kesin olarak engelledik */}
         <form onSubmit={handleCheckout} autoComplete="off" className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <select name="city" required value={formData.city} onChange={handleInputChange} className="border p-3 rounded-md w-full focus:border-red-800 outline-none">
