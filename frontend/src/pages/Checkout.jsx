@@ -33,7 +33,10 @@ const Checkout = () => {
   };
 
   const handleCheckout = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Tarayıcının sayfayı yenilemesini veya başka yere post etmesini engeller
+    e.stopPropagation();
+    
+    console.log("BUTONA BASILDI - handleCheckout TETİKLENDİ!");
     setStatus('loading');
     setErrorMessage('');
 
@@ -52,13 +55,21 @@ const Checkout = () => {
         items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
       };
 
-      // Yönlendirmeyi önlemek için backend endpoint'lerinin sonuna eğik çizgi (/) ekledik
+      console.log("1. BACKEND'E GİDEN SİPARİŞ PAKETİ:", orderPayload);
+
+      // Doğrudan backend yönlendirmesiz endpoint çağrısı
       const orderRes = await api.post('/orders/', orderPayload);
+      console.log("2. SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
+
+      console.log("3. PAYTR TOKEN İSTEĞİ GÖNDERİLİYOR, ORDER_ID:", orderRes.data.id);
       const paymentRes = await api.post('/payment/create/', { 
         order_id: orderRes.data.id 
       });
 
+      console.log("4. PAYTR'DEN DÖNEN YANIT:", paymentRes.data);
+
       if (paymentRes.data && paymentRes.data.paytr_token) {
+        console.log("5. TOKEN ALINDI, IFRAME HAZIRLANIYOR:", paymentRes.data.paytr_token);
         setIframeToken(paymentRes.data.paytr_token);
         clearCart();
       } else {
@@ -66,14 +77,14 @@ const Checkout = () => {
       }
 
     } catch (err) {
-      console.error("CHECKOUT ERROR DETAILS:", err);
+      console.error("YAZILIMSAL HATA DETAYI:", err);
       setStatus('error');
       const backendError = err.response?.data?.detail || err.message || "Bir hata oluştu.";
       setErrorMessage(`Ödeme Başlatılamadı: ${backendError}`);
     }
   };
 
-  // PayTR Resmi iFrame Resizer Scriptini Yüklüyoruz
+  // PayTR Script Entegrasyonu
   useEffect(() => {
     if (iframeToken) {
       const existingScript = document.getElementById('paytr-script');
@@ -93,14 +104,14 @@ const Checkout = () => {
     }
   }, [iframeToken]);
 
-  // PayTR'nin Gerçek Çalışma Biçimi: Token geldiğinde gizli bir HTML formu oluşturup 
-  // hedefi (target) iframe olacak şekilde otomatik POST etmek zorundayız.
+  // Gizli Form Post Tetikleyicisi
   useEffect(() => {
     if (iframeToken) {
+      console.log("GİZLİ FORM PAYTR'YE POST EDİLİYOR...");
       const form = document.createElement('form');
       form.method = 'POST';
-      form.action = 'https://www.paytr.com/odeme/guvenli'; // PayTR'nin resmi POST adresi
-      form.target = 'paytriframe'; // Çıktıyı aşağıdaki iframe'e basacak
+      form.action = 'https://www.paytr.com/odeme/guvenli';
+      form.target = 'paytriframe';
 
       const input = document.createElement('input');
       input.type = 'hidden';
@@ -109,23 +120,19 @@ const Checkout = () => {
 
       form.appendChild(input);
       document.body.appendChild(form);
-      
-      // Formu otomatik gönderiyoruz
       form.submit();
-      
-      // Temizlik
       form.remove();
     }
   }, [iframeToken]);
 
+  // Eğer token varsa sadece iframe'i göster
   if (iframeToken) {
     return (
       <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
         <div className="bg-emerald-50 p-4 rounded-md mb-6 text-sm text-emerald-800 border border-emerald-200 shadow-sm">
-          Siparişiniz başarıyla oluşturuldu. Güvenli ödeme ekranı yükleniyor...
+          Siparişiniz alındı. Ödeme ekranı yükleniyor...
         </div>
         <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
-          {/* src özelliğini boş bırakıyoruz, yukarıdaki otomatik POST formu burayı dolduracak */}
           <iframe 
             name="paytriframe"
             id="paytriframe" 
@@ -142,7 +149,7 @@ const Checkout = () => {
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
       <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Teslimat Bilgileri</h2>
-        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.</p>
+        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksikosiz doldurun.</p>
 
         {status === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-start gap-3">
@@ -151,7 +158,8 @@ const Checkout = () => {
           </div>
         )}
 
-        <form onSubmit={handleCheckout} className="space-y-4">
+        {/* Formun dışarıya post edilmesini kesin olarak engelledik */}
+        <form onSubmit={handleCheckout} autoComplete="off" className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <select name="city" required value={formData.city} onChange={handleInputChange} className="border p-3 rounded-md w-full focus:border-red-800 outline-none">
               <option value="">İl Seçiniz</option>
