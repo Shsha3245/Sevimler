@@ -8,7 +8,7 @@ import json
 MERCHANT_ID = os.getenv("PAYTR_MERCHANT_ID", "").strip()
 MERCHANT_KEY = os.getenv("PAYTR_MERCHANT_KEY", "").strip()
 MERCHANT_SALT = os.getenv("PAYTR_MERCHANT_SALT", "").strip()
-TEST_MODE = os.getenv("PAYTR_TEST_MODE", "0").strip() # Canlı mod için 0'a zorladık
+TEST_MODE = os.getenv("PAYTR_TEST_MODE", "1").strip() # Canlı mod için 0'a zorladık
 
 def create_payment_session(order, user_email, request):
     if not all([MERCHANT_ID, MERCHANT_KEY, MERCHANT_SALT]):
