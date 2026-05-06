@@ -12,6 +12,7 @@ import FAQ from './pages/FAQ';
 import SuccessPage from './pages/SuccessPage';
 import MyOrders from './pages/MyOrders';
 import OrderManager from './pages/Admin/OrderManager';
+import MesafeliSatisSozlesmesi from './pages/MesafeliSatisSozlesmesi';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth();
@@ -46,6 +47,7 @@ function App() {
           <Route path="/kvkk" element={<KVKK />} />
           <Route path="/iade-kosullari" element={<RefundPolicy />} />
           <Route path="/sss" element={<FAQ />} />
+          <Route path="/mesafeli-satis-sozlesmesi" element={<MesafeliSatisSozlesmesi />} />
           <Route path="/success" element={<SuccessPage />} />
           
           {/* Hidden Admin Route */}
