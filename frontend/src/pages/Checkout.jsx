@@ -89,7 +89,7 @@ const Checkout = () => {
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
       <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Teslimat Bilgileri</h2>
-        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksikosiz doldurun.</p>
+        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.</p>
 
         {status === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-start gap-3">
@@ -105,14 +105,15 @@ const Checkout = () => {
               Siparişiniz başarıyla kaydedildi. Ödeme aşamasına geçmeye hazırsınız!
             </div>
             
-            {/* Tarayıcıların asla engelleyemeyeceği saf, standart HTML Form yapısı */}
-            <form method="POST" action="https://www.paytr.com/odeme" target="_top">
+            {/* 🚀 URL sonuna eğik çizgi (/) eklendi ve tıklama esnasında loading state yönetimi kuruldu */}
+            <form method="POST" action="https://www.paytr.com/odeme/sandbox/" target="_top" onSubmit={() => setStatus('redirecting')}>
               <input type="hidden" name="token" value={paytrToken} />
               <button 
                 type="submit" 
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-md font-bold text-lg transition-all shadow-md animate-pulse"
+                disabled={status === 'redirecting'}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white py-4 rounded-md font-bold text-lg transition-all shadow-md custom-btn"
               >
-                Şimdi Güvenli Ödemeye Git ➔
+                {status === 'redirecting' ? 'Güvenli Sayfaya Yönlendiriliyorsunuz...' : 'Şimdi Güvenli Ödemeye Git ➔'}
               </button>
             </form>
           </div>
