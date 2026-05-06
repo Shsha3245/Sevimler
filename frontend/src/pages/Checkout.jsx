@@ -57,22 +57,27 @@ const Checkout = () => {
 
       console.log("1. BACKEND'E GİDEN SİPARİŞ PAKETİ:", orderPayload);
 
+      // Orders endpoint'iniz eğik çizgili bittiği için dokunmuyoruz
       const orderRes = await api.post('/orders/', orderPayload);
       console.log("2. SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
 
       console.log("3. PAYTR TOKEN İSTEĞİ GÖNDERİLİYOR, ORDER_ID:", orderRes.data.id);
-      const paymentRes = await api.post('/payment/create/', { 
+      
+      # 🚀 KRİTİK DÜZELTME: Sondaki eğik çizgiyi (/) kaldırdık. 
+      # Böylece 307 Redirect tetiklenmeyecek ve veri kaybı olmadan doğrudan 200 OK dönecek.
+      const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
 
       console.log("4. PAYTR'DEN DÖNEN YANIT:", paymentRes.data);
 
-      if (paymentRes.data && paymentRes.data.paytr_token) {
-        console.log("5. TOKEN ALINDI, IFRAME HAZIRLANIYOR:", paymentRes.data.paytr_token);
+      if (paymentRes.data && paymentRes.data.status === "success" && paymentRes.data.paytr_token) {
+        console.log("5. TOKEN BAŞARIYLA ALINDI, IFRAME HAZIRLANIYOR:", paymentRes.data.paytr_token);
         setIframeToken(paymentRes.data.paytr_token);
         clearCart();
       } else {
-        throw new Error("PayTR'den token dönmedi.");
+        const errorDetail = paymentRes.data?.detail || "PayTR entegrasyonu doğrulanamadı.";
+        throw new Error(errorDetail);
       }
 
     } catch (err) {
@@ -83,7 +88,7 @@ const Checkout = () => {
     }
   };
 
-  // PayTR Script Entegrasyonu (Boyutlandırıcı)
+  // PayTR Boyutlandırıcı Script Entegrasyonu
   useEffect(() => {
     if (iframeToken) {
       const existingScript = document.getElementById('paytr-script');
@@ -103,20 +108,18 @@ const Checkout = () => {
     }
   }, [iframeToken]);
 
-  // Tarayıcı ve DOM engellerini aşmak için srcDoc HTML şablonu oluşturuyoruz
   const getIframeHtml = (token) => {
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>PayTR</title>
+          <title>PayTR Secure Payment</title>
         </head>
         <body style="margin:0; padding:0;">
           <form id="paytr_form" method="POST" action="https://www.paytr.com/odeme/guvenli">
             <input type="hidden" name="token" value="${token}" />
           </form>
           <script type="text/javascript">
-            // DOM tamamen hazır olduğunda formu anında ve güvenle post et
             window.onload = function() {
               document.getElementById('paytr_form').submit();
             };
@@ -133,7 +136,7 @@ const Checkout = () => {
           Siparişiniz alındı. Güvenli ödeme ekranı yükleniyor...
         </div>
         <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
-          {/* srcDoc kullanarak tüm süreci asenkron risklerden arındırıp tarayıcı içinde izole çalıştırıyoruz */}
+          {/* Tarayıcı kalkanlarını esnetmek için sandbox ve allow niteliklerini ekledik */}
           <iframe 
             id="paytriframe" 
             name="paytriframe"
@@ -141,6 +144,8 @@ const Checkout = () => {
             frameBorder="0" 
             scrolling="no" 
             className="w-full min-h-[650px] border-none"
+            sandbox="allow-top-navigation allow-scripts allow-forms allow-same-origin"
+            allow="payment"
           ></iframe>
         </div>
       </div>
