@@ -10,6 +10,7 @@ class PaymentCreateRequest(BaseModel):
     order_id: int
 
 @router.post("/create")
+@router.post("/create/") # İki varyasyonu da kurtarmak için alias ekledik
 def create_payment(
     payload: PaymentCreateRequest,
     request: Request,
