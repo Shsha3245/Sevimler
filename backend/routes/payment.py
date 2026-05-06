@@ -64,10 +64,14 @@ def create_payment(
         return payment_data
 
     except Exception as e:
-        # Hata durumunda durumu tekrar PENDING'e çek ki kullanıcı tekrar ödemeyi deneyebilsin
         order.status = "PENDING"
         db.commit()
-        print(f"PAYMENT ROUTE ERROR: {str(e)}")
+        
+        # 🚀 KRİTİK: PayTR'den dönen gerçek hata mesajını Render konsoluna zorla bastırıyoruz!
+        print("\n" + "="*50)
+        print(f"🔥 PAYTR GERÇEK HATA DETAYI: {str(e)}")
+        print("="*50 + "\n")
+        
         raise HTTPException(
             status_code=500, 
             detail=f"Ödeme oturumu oluşturulamadı: {str(e)}"
