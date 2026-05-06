@@ -98,17 +98,28 @@ def create_payment_session(order, user_email, request):
         }
 
         # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
+        # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
         response = requests.post("https://www.paytr.com/odeme/api/get-token", data=payload)
         res_data = response.json()
 
-        # Eğer PayTR API'si hata döndürürse bunu loglayıp yakalıyoruz
+        # Loglara ne döndüğünü tam görmek için ekliyoruz (Render konsolunda görebilmek için)
+        print(f"--- PAYTR SUNUCUSUNDAN DÖNEN HAM VERİ: {res_data} ---")
+
+        # Eğer PayTR API'si hata döndürürse bunu yakalıyoruz
         if res_data.get("status") == "error":
             raise Exception(f"PayTR API Hatası: {res_data.get('err_msg')}")
 
-        # 7. FRONTEND'E SADECE IFRAME'İ AÇACAK OLAN ASIL TOKEN DEĞERİNİ DÖNDÜRÜYORUZ
+        # 7. FRONTEND'İN BEKLEDİĞİ 'paytr_token' ANAHTARINI GARANTİYE ALIYORUZ
+        # PayTR'den 'token' olarak gelir, biz frontend'e 'paytr_token' olarak paslarız.
+        # İki ihtimali de güvene almak için hem 'token' hem 'paytr_token' kontrolü yapıyoruz.
+        actual_token = res_data.get("token") or res_data.get("paytr_token")
+
+        if not actual_token:
+            raise Exception(f"PayTR basarili dondu ama icinden token cikmadi! Donen veri: {res_data}")
+
         return {
             "status": "success",
-            "paytr_token": res_data.get("token")  # PayTR'den dönen gerçek ödeme oturum tokenı
+            "paytr_token": str(actual_token)
         }
         
     except Exception as e:
