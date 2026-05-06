@@ -69,8 +69,8 @@ const Footer = () => {
                 <Phone className="w-6 h-6 text-[#d97706]" />
                 <div>
                    <p className="text-[#1c1917] text-[10px] font-black uppercase tracking-widest">Müşteri Hattı</p>
-                   <a href="tel:+905071058427" className="text-stone-600 text-[11px] font-bold hover:text-[#d97706] transition-colors">
-                     0 (507) 105 84 27
+                   <a href="tel:+905534328947" className="text-stone-600 text-[11px] font-bold hover:text-[#d97706] transition-colors">
+                     0 (553) 432 89 47
                    </a>
                 </div>
              </div>
@@ -81,7 +81,7 @@ const Footer = () => {
                 <div>
                    <p className="text-[#1c1917] text-[10px] font-black uppercase tracking-widest">Merkez Merkez/Diğer</p>
                    <p className="text-stone-500 text-[10px] leading-relaxed mt-0.5">
-                     [Buraya Vergi Levhasındaki Resmi Dükkan Adresini Tam Olarak Yazın] Bornova / İzmir
+                     Halkapınar mahallesi 1203/1 sokak no:1 Konak/İzmir
                    </p>
                 </div>
              </div>
