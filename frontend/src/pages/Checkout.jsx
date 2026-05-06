@@ -105,8 +105,27 @@ const Checkout = () => {
     }
   }, [iframeToken]);
 
-  // 🚀 İPTAL EDİLDİ: getIframeHtml fonksiyonu ve karmaşık form submit taklidi kaldırıldı.
-  // Doğrudan resmi sandbox endpoint'ini iframe src'sine gömüyoruz.
+  // 🚀 GÜVENLİK DUVARINI (CSP) AŞAN SANDBOX FORM GENERATOR
+  const getIframeHtml = (token) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>PayTR Secure Payment</title>
+        </head>
+        <body style="margin:0; padding:0;">
+          <form id="paytr_form" method="POST" action="https://www.paytr.com/odeme/sandbox">
+            <input type="hidden" name="token" value="${token}" />
+          </form>
+          <script type="text/javascript">
+            window.onload = function() {
+              document.getElementById('paytr_form').submit();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+  };
 
   if (iframeToken) {
     return (
@@ -115,11 +134,11 @@ const Checkout = () => {
           Siparişiniz alındı. Güvenli test ödeme ekranı yükleniyor...
         </div>
         <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
-          {/* 🚀 Sandbox URL yapısı doğrudan src olarak bağlandı */}
+          {/* 🚀 Güvenli şekilde formu içeride patlatmak için srcDoc yapısına geri döndük */}
           <iframe 
             id="paytriframe" 
             name="paytriframe"
-            src={`https://www.paytr.com/odeme/sandbox/${iframeToken}`}
+            srcDoc={getIframeHtml(iframeToken)}
             frameBorder="0" 
             scrolling="no" 
             className="w-full min-h-[650px] border-none"
@@ -135,7 +154,7 @@ const Checkout = () => {
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
       <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Teslimat Bilgileri</h2>
-        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksikosiz doldurun.</p>
+        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.</p>
 
         {status === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-start gap-3">
