@@ -112,7 +112,7 @@ const Checkout = () => {
               id="paytriframe" 
               frameBorder="0" 
               scrolling="no" 
-              style={{ width: '100%', minHeight: '650px' }}
+              style={{ width: '100%', minHeight: '950px' }}
               title="PayTR Secure Payment"
             />
           </div>
