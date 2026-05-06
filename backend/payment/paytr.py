@@ -18,7 +18,7 @@ def create_payment_session(order, user_email, request):
     try:
         # 1. TEMEL PARAMETRELERİN DÖKÜMAN FORMATINA ÇEVRİLMESİ
         merchant_id = str(MERCHANT_ID)
-        merchant_oid = f"SP-{order.id}"  # Karışıklığı önlemek için sipariş numarası formatı
+        merchant_oid = f"SP{order.id}"  # Karışıklığı önlemek için sipariş numarası formatı
         email = str(user_email).strip()
         
         # Fiyatı kesinlikle kuruşa çevirip küsuratsız string yapıyoruz (Örn: 300.00 -> 30000)
@@ -95,21 +95,23 @@ def create_payment_session(order, user_email, request):
         }
 
         # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
+        # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
         response = requests.post("https://www.paytr.com/odeme/api/get-token", data=payload)
         res_data = response.json()
 
         # Render konsolunda ham yanıtı görmek için basıyoruz
         print(f"\n--- PAYTR SUNUCUSUNDAN DÖNEN HAM VERİ: {res_data} ---\n")
 
-        # Eğer PayTR API'si hata döndürürse bunu yakalıyoruz
-        if res_data.get("status") == "error":
-            raise Exception(f"PayTR API Hatası: {res_data.get('err_msg')}")
+        # 🚀 GÜNCELLEME: PayTR 'error' veya 'failed' döndüğünde hatayı anında yakala
+        if res_data.get("status") in ["error", "failed"]:
+            error_msg = res_data.get("err_msg") or res_data.get("reason") or "Bilinmeyen PayTR Hatası"
+            raise Exception(f"PayTR API Hatası: {error_msg}")
 
         # 7. FRONTEND'E GÜVENLİ VE DOĞRU ANAHTARLA PASLIYORUZ
-        actual_token = res_data.get("token") or res_data.get("paytr_token")
+        actual_token = res_data.get("token")
 
         if not actual_token:
-            raise Exception(f"PayTR basarili dondu ama icinden token cikmadi!")
+            raise Exception("PayTR basarili dondu ama icinden token cikmadi!")
 
         return {
             "status": "success",
