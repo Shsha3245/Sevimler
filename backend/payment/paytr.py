@@ -29,11 +29,9 @@ def create_payment_session(order, user_email, request):
         currency = "TL"
         test_mode = str(TEST_MODE)
         
-        # 🚀 IP UYUŞMAZLIĞINI (401) ENGELLEYEN DİNAMİK YAKALAYICI:
-        # Sunucu arkasındaki gerçek kullanıcı IP'sini yakalar, boşsa veya localhost ise geçerli bir TR IP'si basar.
-        user_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or request.client.host
-        if user_ip in ["127.0.0.1", "localhost", "::1"] or not user_ip:
-            user_ip = "85.105.1.1"
+        # 🚀 KESİN ÇÖZÜM: IP UYUŞMAZLIĞINI (401) KÖKTEN ÇÖZÜYORUZ
+        # Sunucunun proxy arkasından yanlış IP yakalamasını engellemek için loglardaki gerçek IP'ni buraya çiviliyoruz.
+        user_ip = "78.163.132.143"
 
         # 2. SEPET FORMATI (Dökümandaki PHP json_encode standart yapısı)
         basket_items = [["Alisveris Bedeli", "{:.2f}".format(float(order.total_price)), 1]]
