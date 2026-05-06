@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
 import { AlertTriangle } from 'lucide-react';
@@ -23,7 +23,6 @@ const Checkout = () => {
 
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [iframeToken, setIframeToken] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -55,11 +54,13 @@ const Checkout = () => {
 
       console.log("1. BACKEND'E GİDEN SİPARİŞ PAKETİ:", orderPayload);
 
+      // 1. Backend siparişi oluşturur
       const orderRes = await api.post('/orders/', orderPayload);
       console.log("2. SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
 
       console.log("3. PAYTR TOKEN İSTEĞİ GÖNDERİLİYOR, ORDER_ID:", orderRes.data.id);
       
+      // 2. Backend PayTR'den tokenı alır
       const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
@@ -67,9 +68,29 @@ const Checkout = () => {
       console.log("4. PAYTR'DEN DÖNEN YANIT:", paymentRes.data);
 
       if (paymentRes.data && paymentRes.data.status === "success" && paymentRes.data.paytr_token) {
-        console.log("5. TOKEN BAŞARIYLA ALINDI, IFRAME OLUŞTURULUYOR:", paymentRes.data.paytr_token);
-        setIframeToken(paymentRes.data.paytr_token);
+        console.log("5. TOKEN ALINDI. TARAYICI GÜVENLİK DUVARLARINI AŞAN OTO-POST BAŞLATILIYOR...");
+        
+        // Sepeti sıfırla
         clearCart();
+
+        // 🚀 TARAYICI ENGELİNİ YIKAN KESİN FORM SİMÜLASYONU:
+        // Sayfa üzerinde sanal bir form oluşturup doğrudan ana pencereden PayTR'ye POST fırlatıyoruz.
+        const mapForm = document.createElement('form');
+        mapForm.target = '_top'; // İframe hatasını çözen sihirli satır
+        mapForm.method = 'POST';
+        mapForm.action = 'https://www.paytr.com/odeme';
+
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = paymentRes.data.paytr_token;
+
+        mapForm.appendChild(tokenInput);
+        document.body.appendChild(mapForm);
+        
+        // Formu gönder
+        mapForm.submit();
+        
       } else {
         const errorDetail = paymentRes.data?.detail || "PayTR entegrasyonu doğrulanamadı.";
         throw new Error(errorDetail);
@@ -82,69 +103,6 @@ const Checkout = () => {
       setErrorMessage(`Ödeme Başlatılamadı: ${backendError}`);
     }
   };
-
-  // 🚀 PAYTR EKİBİNİN İSTEDİĞİ JS DOSYASININ ENTEGRASYONU VE OTO-BOYUTLANDIRMA
-  useEffect(() => {
-    if (iframeToken) {
-      const existingScript = document.getElementById('paytr-script');
-      if (existingScript) existingScript.remove();
-
-      const script = document.createElement('script');
-      script.src = "https://www.paytr.com/js/iframeResizer.min.js";
-      script.id = "paytr-script";
-      script.async = true;
-      
-      script.onload = () => {
-        if (window.iFrameResize) {
-          window.iFrameResize({}, '#paytriframe');
-        }
-      };
-      document.body.appendChild(script);
-    }
-  }, [iframeToken]);
-
-  // 🚀 DÖKÜMANTASYONA UYGUN GERÇEK FORM POST SİMÜLASYONU (srcDoc İçinde)
-  const getIframeHtml = (token) => {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>PayTR Secure Payment</title>
-        </head>
-        <body style="margin:0; padding:0;">
-          <form id="paytr_form" method="POST" action="https://www.paytr.com/odeme">
-            <input type="hidden" name="token" value="${token}" />
-          </form>
-          <script type="text/javascript">
-            window.onload = function() {
-              document.getElementById('paytr_form').submit();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-  };
-
-  if (iframeToken) {
-    return (
-      <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
-        <div className="bg-emerald-50 p-4 rounded-md mb-6 text-sm text-emerald-800 border border-emerald-200 shadow-sm">
-          Siparişiniz alındı. Güvenli ödeme ekranı yükleniyor...
-        </div>
-        <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[600px]">
-          {/* Resmi iFrame API standardı */}
-          <iframe 
-            id="paytriframe" 
-            name="paytriframe"
-            srcDoc={getIframeHtml(iframeToken)}
-            frameBorder="0" 
-            scrolling="no" 
-            className="w-full min-h-[600px] border-none"
-          ></iframe>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
