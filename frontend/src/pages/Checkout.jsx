@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 const Checkout = () => {
   const { cart, clearCart } = useCart();
@@ -52,23 +52,25 @@ const Checkout = () => {
       };
 
       // 1. Sipariş oluştur
+      console.log("2. ADIM - BACKEND'DE SİPARİŞ OLUŞTURULUYOR...", orderPayload);
       const orderRes = await api.post('/orders/', orderPayload);
-      console.log("2. SİPARİŞ OLUŞTU:", orderRes.data);
+      console.log("3. ADIM - SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
 
       // 2. Token iste
+      console.log("4. ADIM - BACKEND'DEN PAYTR TOKEN İSTENİYOR, ORDER_ID:", orderRes.data.id);
       const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
 
-      console.log("3. PAYTR'DEN DÖNEN YANIT:", paymentRes.data);
+      console.log("5. ADIM - BACKEND'DEN DÖNEN PAYTR YANITI:", paymentRes.data);
 
       if (paymentRes.data && paymentRes.data.status === "success" && paymentRes.data.paytr_token) {
-        console.log("4. TOKEN ALINDI! ÖDEME BUTONU AKTİFLEŞTİRİLİYOR.");
+        console.log("6. ADIM - TOKEN ALINDI! ÖDEME FORMU HAZIRLANIYOR.");
         
-        // Sepeti temizle
+        // Sipariş güvenle oluştuğu için sepeti sıfırlıyoruz
         clearCart();
         
-        // Token'ı state'e yazarak gerçek formu render ediyoruz
+        // Token'ı state'e yazarak yönlendirme butonunu gösteriyoruz
         setPaytrToken(paymentRes.data.paytr_token);
         setStatus('ready_to_pay');
         
@@ -78,7 +80,7 @@ const Checkout = () => {
       }
 
     } catch (err) {
-      console.error("YAZILIMSAL HATA DETAYI:", err);
+      console.error("FRONTEND YAZILIMSAL HATA DETAYI:", err);
       setStatus('error');
       const backendError = err.response?.data?.detail || err.message || "Bir hata oluştu.";
       setErrorMessage(`Ödeme Başlatılamadı: ${backendError}`);
@@ -98,20 +100,22 @@ const Checkout = () => {
           </div>
         )}
 
-        {/* 🚀 2. ADIM: TOKEN ALINDIKTAN SONRA AÇILAN RESMİ PAYTR FORMU */}
+        {/* 🚀 2. ADIM: TOKEN GELDİKTEN SONRA TARAYICIYI DOĞRUDAN PAYTR'YE UÇURAN SAF FORM */}
         {status === 'ready_to_pay' && paytrToken ? (
-          <div className="text-center py-6 space-y-4">
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-md text-sm">
-              Siparişiniz başarıyla kaydedildi. Ödeme aşamasına geçmeye hazırsınız!
+          <div className="text-center py-8 space-y-6">
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-5 rounded-md text-sm flex flex-col items-center gap-2">
+              <CheckCircle2 size={32} className="text-emerald-600 animate-bounce" />
+              <span className="font-semibold text-base">Siparişiniz Başarıyla Kaydedildi!</span>
+              <span>Ödeme aşamasına geçmeye hazırsınız. Aşağıdaki buton sizi güvenli ödeme sayfasına aktaracaktır.</span>
             </div>
             
-            {/* 🚀 URL sonuna eğik çizgi (/) eklendi ve tıklama esnasında loading state yönetimi kuruldu */}
-            <form method="POST" action="https://www.paytr.com/odeme/sandbox/" target="_top" onSubmit={() => setStatus('redirecting')}>
+            {/* Tarayıcıların asla engelleyemeyeceği dökümantasyon uyumlu standart HTML Form yapısı */}
+            <form method="POST" action="https://www.paytr.com/odeme" target="_top" onSubmit={() => setStatus('redirecting')}>
               <input type="hidden" name="token" value={paytrToken} />
               <button 
                 type="submit" 
                 disabled={status === 'redirecting'}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white py-4 rounded-md font-bold text-lg transition-all shadow-md custom-btn"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white py-4 rounded-md font-bold text-lg transition-all shadow-md transform hover:scale-[1.01]"
               >
                 {status === 'redirecting' ? 'Güvenli Sayfaya Yönlendiriliyorsunuz...' : 'Şimdi Güvenli Ödemeye Git ➔'}
               </button>
