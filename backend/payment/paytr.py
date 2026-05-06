@@ -33,17 +33,15 @@ def create_payment_session(order, user_email, request):
         user_ip = "176.234.0.1"
 
         # 2. SEPET FORMATI (Dökümandaki Örnek Birebir Manuel Sepet Yapısı)
-        # Format: [["Ürün Adı", "Birim Fiyat", Adet]]
         basket_items = [["Alisveris Bedeli", "{:.2f}".format(float(order.total_price)), 1]]
         
         # PHP'deki json_encode çıktısını birebir yakalamak için boşluksuz separator ayarı
         json_basket = json.dumps(basket_items, separators=(',', ':'), ensure_ascii=False)
         user_basket = base64.b64encode(json_basket.encode("utf-8")).decode("utf-8")
 
-        # 3. YÜKLEDİĞİN DÖKÜMANDAKİ ZORUNLU KULLANICI BİLGİLERİ (Eksik Alanlar Eklendi)
-        # Sipariş objesinden veya form verilerinden bu alanları besliyoruz
+        # 3. YÜKLEDİĞİN DÖKÜMANDAKİ ZORUNLU KULLANICI BİLGİLERİ
         user_name = getattr(order, 'full_name', 'Misafir Kullanıcı')
-        user_address = getattr(order, 'address', 'Türkiye')
+        user_address = getattr(order, 'address', 'Turkiye')
         user_phone = getattr(order, 'phone', '05000000000')
 
         # URL Tanımlamaları
@@ -51,7 +49,6 @@ def create_payment_session(order, user_email, request):
         merchant_fail_url = "https://sevimlerkuruyemis.com/fail"
 
         # 4. RESMİ FORMÜLE UYALAN HASH MATRİS SIRALAMASI
-        # Sıralama dökümandaki POST Request tablosuna göre harfiyen eşleşmelidir
         hash_str = (
             merchant_id +
             user_ip +
@@ -65,13 +62,13 @@ def create_payment_session(order, user_email, request):
             test_mode
         )
 
-        # HMAC SHA256 Şifreleme Adımı
+        # HMAC SHA256 Şifreleme Adımı (Walrus operatörü kaldırıldı, standart hale getirildi)
         hash_authenticated = hash_str + MERCHANT_SALT
         paytr_token = base64.b64encode(
             hmac.new(
                 MERCHANT_KEY.encode("utf-8"),
                 hash_authenticated.encode("utf-8"),
-                hash_bytes:=hashlib.sha256
+                hashlib.sha256
             ).digest()
         ).decode("utf-8")
 
@@ -98,24 +95,21 @@ def create_payment_session(order, user_email, request):
         }
 
         # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
-        # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
         response = requests.post("https://www.paytr.com/odeme/api/get-token", data=payload)
         res_data = response.json()
 
-        # Loglara ne döndüğünü tam görmek için ekliyoruz (Render konsolunda görebilmek için)
-        print(f"--- PAYTR SUNUCUSUNDAN DÖNEN HAM VERİ: {res_data} ---")
+        # Render konsolunda ham yanıtı görmek için basıyoruz
+        print(f"\n--- PAYTR SUNUCUSUNDAN DÖNEN HAM VERİ: {res_data} ---\n")
 
         # Eğer PayTR API'si hata döndürürse bunu yakalıyoruz
         if res_data.get("status") == "error":
             raise Exception(f"PayTR API Hatası: {res_data.get('err_msg')}")
 
-        # 7. FRONTEND'İN BEKLEDİĞİ 'paytr_token' ANAHTARINI GARANTİYE ALIYORUZ
-        # PayTR'den 'token' olarak gelir, biz frontend'e 'paytr_token' olarak paslarız.
-        # İki ihtimali de güvene almak için hem 'token' hem 'paytr_token' kontrolü yapıyoruz.
+        # 7. FRONTEND'E GÜVENLİ VE DOĞRU ANAHTARLA PASLIYORUZ
         actual_token = res_data.get("token") or res_data.get("paytr_token")
 
         if not actual_token:
-            raise Exception(f"PayTR basarili dondu ama icinden token cikmadi! Donen veri: {res_data}")
+            raise Exception(f"PayTR basarili dondu ama icinden token cikmadi!")
 
         return {
             "status": "success",
