@@ -29,8 +29,12 @@ def create_payment_session(order, user_email, request):
         currency = "TL"
         test_mode = str(TEST_MODE)
         
-        # Dinamik IP sıkıntı yaratabileceğinden dökümanın önerdiği geçerli bir TR IPv4 adresi
-        user_ip = "176.234.0.1"
+        # 🚀 Kullanıcının gerçek IP'sini dinamik olarak yakalıyoruz (Render/Proxy uyumlu)
+        user_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or request.client.host
+        
+        # Yerel bilgisayar testlerinde IP localhost gelirse PayTR hata vermesin diye TR IP'si veriyoruz
+        if user_ip in ["127.0.0.1", "localhost", "::1"] or not user_ip:
+            user_ip = "85.105.1.1"
 
         # 2. SEPET FORMATI (Dökümandaki Örnek Birebir Manuel Sepet Yapısı)
         basket_items = [["Alisveris Bedeli", "{:.2f}".format(float(order.total_price)), 1]]
@@ -68,7 +72,7 @@ def create_payment_session(order, user_email, request):
             hmac.new(
                 MERCHANT_KEY.encode("utf-8"),
                 hash_authenticated.encode("utf-8"),
-                hashlib.sha256
+                hash_with := hashlib.sha256
             ).digest()
         ).decode("utf-8")
 
@@ -81,7 +85,7 @@ def create_payment_session(order, user_email, request):
             "payment_amount": payment_amount,
             "paytr_token": paytr_token,
             "user_basket": user_basket,
-            "debug_on": "1",
+            "debug_on": "0",  # 🚀 401/Yönlendirme sorununu önlemek için 0 yapıldı
             "no_installment": no_installment,
             "max_installment": max_installment,
             "currency": currency,
@@ -95,14 +99,13 @@ def create_payment_session(order, user_email, request):
         }
 
         # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
-        # 6. KRİTİK ADIM: PAYTR SUNUCULARINA DOĞRUDAN BAĞLANIP IFRAME TOKEN ALMA
         response = requests.post("https://www.paytr.com/odeme/api/get-token", data=payload)
         res_data = response.json()
 
         # Render konsolunda ham yanıtı görmek için basıyoruz
         print(f"\n--- PAYTR SUNUCUSUNDAN DÖNEN HAM VERİ: {res_data} ---\n")
 
-        # 🚀 GÜNCELLEME: PayTR 'error' veya 'failed' döndüğünde hatayı anında yakala
+        # 🚀 GÜNCELLEME: PayTR 'error' or 'failed' döndüğünde hatayı anında yakala
         if res_data.get("status") in ["error", "failed"]:
             error_msg = res_data.get("err_msg") or res_data.get("reason") or "Bilinmeyen PayTR Hatası"
             raise Exception(f"PayTR API Hatası: {error_msg}")
