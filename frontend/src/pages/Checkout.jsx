@@ -23,6 +23,7 @@ const Checkout = () => {
 
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [paytrToken, setPaytrToken] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -64,28 +65,14 @@ const Checkout = () => {
       console.log("5. ADIM - BACKEND'DEN DÖNEN PAYTR YANITI:", paymentRes.data);
 
       if (paymentRes.data && paymentRes.data.status === "success" && paymentRes.data.paytr_token) {
-        console.log("6. ADIM - TOKEN ALINDI! GÜVENLİ ŞEKİLDE SAF JS İLE YÖNLENDİRİLİYOR.");
+        console.log("6. ADIM - TOKEN ALINDI! IFRAME AKTİFLEŞTİRİLİYOR.");
         
-        // 🚀 Önce sepeti temizliyoruz
+        // Sepeti güvenle temizle
         clearCart();
         
-        // 🚀 React render'ına takılmamak için hafızada saf bir HTML formu oluşturuyoruz
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://www.paytr.com/odeme';
-        form.target = '_top'; // iframe ve tarayıcı engellerini aşmak için kritik satır
-
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'token';
-        hiddenInput.value = paymentRes.data.paytr_token;
-
-        form.appendChild(hiddenInput);
-        document.body.appendChild(form);
-        
-        // 🚀 Formu doğrudan PayTR sunucularına ateşle (Tarayıcı formu iptal edemez)
-        form.submit();
-        return;
+        // Token'ı state'e atayıp ekranda iFrame'i render ediyoruz
+        setPaytrToken(paymentRes.data.paytr_token);
+        setStatus('ready_to_pay');
         
       } else {
         const errorDetail = paymentRes.data?.detail || "PayTR entegrasyonu doğrulanamadı.";
@@ -102,9 +89,13 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
-      <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-sm">
-        <h2 className="text-2xl font-semibold mb-2">Teslimat Bilgileri</h2>
-        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.</p>
+      <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
+        <h2 className="text-2xl font-semibold mb-2">
+          {status === 'ready_to_pay' ? 'Güvenli Ödeme Sayfası' : 'Teslimat Bilgileri'}
+        </h2>
+        <p className="text-gray-500 text-sm mb-6">
+          {status === 'ready_to_pay' ? 'Lütfen kart bilgilerinizi girerek ödemeyi tamamlayın.' : 'Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.'}
+        </p>
 
         {status === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-start gap-3">
@@ -113,55 +104,69 @@ const Checkout = () => {
           </div>
         )}
 
-        {/* KULLANICI BİLGİ FORMU */}
-        <form onSubmit={handleCheckoutInit} autoComplete="off" className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <select name="city" required value={formData.city} onChange={handleInputChange} className="border p-3 rounded-md w-full focus:border-red-800 outline-none">
-              <option value="">İl Seçiniz</option>
-              <option value="İstanbul">İstanbul</option>
-              <option value="İzmir">İzmir</option>
-              <option value="Ankara">Ankara</option>
-            </select>
-            <select name="district" required value={formData.district} onChange={handleInputChange} className="border p-3 rounded-md w-full focus:border-red-800 outline-none">
-              <option value="">İlçe Seçiniz</option>
-              {formData.city === 'İzmir' && <option value="Bornova">Bornova</option>}
-              {formData.city === 'İzmir' && <option value="Konak">Konak</option>}
-              {formData.city === 'İstanbul' && <option value="Kadıköy">Kadıköy</option>}
-              <option value="Merkez">Merkez/Diğer</option>
-            </select>
+        {/* 🚀 2. ADIM: TOKEN ALINDIKTAN SONRA AÇILAN RESMİ PAYTR IFRAME PENCERESİ */}
+        {status === 'ready_to_pay' && paytrToken ? (
+          <div className="w-full flex justify-center items-center border border-gray-100 rounded-md overflow-hidden bg-white min-h-[600px] shadow-inner">
+            <iframe 
+              src={`https://www.paytr.com/odeme/guvenli/${paytrToken}`} 
+              id="paytriframe" 
+              frameBorder="0" 
+              scrolling="no" 
+              style={{ width: '100%', minHeight: '650px' }}
+              title="PayTR Secure Payment"
+            />
           </div>
+        ) : (
+          /* 🚀 1. ADIM: KULLANICI BİLGİ FORMU */
+          <form onSubmit={handleCheckoutInit} autoComplete="off" className="space-y-4 max-w-xl mx-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <select name="city" required value={formData.city} onChange={handleInputChange} className="border p-3 rounded-md w-full focus:border-red-800 outline-none">
+                <option value="">İl Seçiniz</option>
+                <option value="İstanbul">İstanbul</option>
+                <option value="İzmir">İzmir</option>
+                <option value="Ankara">Ankara</option>
+              </select>
+              <select name="district" required value={formData.district} onChange={handleInputChange} className="border p-3 rounded-md w-full focus:border-red-800 outline-none">
+                <option value="">İlçe Seçiniz</option>
+                {formData.city === 'İzmir' && <option value="Bornova">Bornova</option>}
+                {formData.city === 'İzmir' && <option value="Konak">Konak</option>}
+                {formData.city === 'İstanbul' && <option value="Kadıköy">Kadıköy</option>}
+                <option value="Merkez">Merkez/Diğer</option>
+              </select>
+            </div>
 
-          <div className="relative">
-            <label className="absolute -top-2 left-3 bg-white px-1 text-xs text-gray-500">Ülke/Bölge</label>
-            <select disabled className="border p-3 rounded-md w-full bg-gray-50 outline-none">
-              <option>Türkiye</option>
-            </select>
-          </div>
+            <div className="relative">
+              <label className="absolute -top-2 left-3 bg-white px-1 text-xs text-gray-500">Ülke/Bölge</label>
+              <select disabled className="border p-3 rounded-md w-full bg-gray-50 outline-none">
+                <option>Türkiye</option>
+              </select>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <input name="first_name" placeholder="Ad" required value={formData.first_name} onChange={handleInputChange} className="border p-3 rounded-md focus:ring-1 focus:ring-gray-300 outline-none" />
-            <input name="last_name" placeholder="Soyadı" required value={formData.last_name} onChange={handleInputChange} className="border p-3 rounded-md focus:ring-1 focus:ring-gray-300 outline-none" />
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input name="first_name" placeholder="Ad" required value={formData.first_name} onChange={handleInputChange} className="border p-3 rounded-md focus:ring-1 focus:ring-gray-300 outline-none" />
+              <input name="last_name" placeholder="Soyadı" required value={formData.last_name} onChange={handleInputChange} className="border p-3 rounded-md focus:ring-1 focus:ring-gray-300 outline-none" />
+            </div>
 
-          <input name="company" placeholder="Şirket (isteğe bağlı)" value={formData.company} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
-          <input name="address" placeholder="Adres (Mahalle, Cadde, Sokak)" required value={formData.address} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
-          <input name="apartment" placeholder="Apartman Daire v.b" value={formData.apartment} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
+            <input name="company" placeholder="Şirket (isteğe bağlı)" value={formData.company} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
+            <input name="address" placeholder="Adres (Mahalle, Cadde, Sokak)" required value={formData.address} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
+            <input name="apartment" placeholder="Apartman Daire v.b" value={formData.apartment} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
 
-          <div className="grid grid-cols-2 gap-4">
-            <input name="zip_code" placeholder="Posta kodu (isteğe bağlı)" value={formData.zip_code} onChange={handleInputChange} className="border p-3 rounded-md outline-none" />
-            <input name="town" placeholder="Şehir" required value={formData.town} onChange={handleInputChange} className="border p-3 rounded-md outline-none" />
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input name="zip_code" placeholder="Posta kodu (isteğe bağlı)" value={formData.zip_code} onChange={handleInputChange} className="border p-3 rounded-md outline-none" />
+              <input name="town" placeholder="Şehir" required value={formData.town} onChange={handleInputChange} className="border p-3 rounded-md outline-none" />
+            </div>
 
-          <input name="phone" placeholder="Telefon" required value={formData.phone} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
+            <input name="phone" placeholder="Telefon" required value={formData.phone} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
 
-          <button 
-            type="submit" 
-            disabled={status === 'loading'} 
-            className="w-full bg-red-700 hover:bg-red-800 disabled:bg-gray-400 text-white py-4 rounded-md font-bold mt-6 transition-all"
-          >
-            {status === 'loading' ? 'Güvenli Ödeme Sayfasına Yönlendiriliyorsunuz...' : 'Bilgileri Onayla ve Ödemeye Git ➔'}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={status === 'loading'} 
+              className="w-full bg-red-700 hover:bg-red-800 disabled:bg-gray-400 text-white py-4 rounded-md font-bold mt-6 transition-all"
+            >
+              {status === 'loading' ? 'Ödeme Sayfası Hazırlanıyor...' : 'Bilgileri Onayla ve Ödemeye Geç ➔'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
