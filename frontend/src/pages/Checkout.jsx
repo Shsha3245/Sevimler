@@ -74,7 +74,8 @@ const Checkout = () => {
         clearCart();
         
         // 🚀 CSP DUVRINI YIKAN KESİN YÖNTEM: Kullanıcıyı doğrudan Sandbox ödeme sayfasına gönderiyoruz
-        window.location.href = `https://www.paytr.com/odeme/sandbox/${paymentRes.data.paytr_token}`;
+       // 🚀 GÜNCEL VE DOĞRU SANDBOX YÖNLENDİRME URL'Sİ:
+        window.location.href = `https://www.paytr.com/odeme/guvenli/sandbox/${paymentRes.data.paytr_token}`;
         
       } else {
         const errorDetail = paymentRes.data?.detail || "PayTR entegrasyonu doğrulanamadı.";
