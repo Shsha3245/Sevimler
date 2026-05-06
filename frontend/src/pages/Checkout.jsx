@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 
 const Checkout = () => {
-  const { cart, total, clearCart } = useCart();
-  const navigate = useNavigate();
+  const { cart, clearCart } = useCart();
 
   const [formData, setFormData] = useState({
     city: '', 
@@ -25,7 +23,6 @@ const Checkout = () => {
 
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [iframeToken, setIframeToken] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -57,11 +54,13 @@ const Checkout = () => {
 
       console.log("1. BACKEND'E GİDEN SİPARİŞ PAKETİ:", orderPayload);
 
+      // 1. Siparişi oluştur
       const orderRes = await api.post('/orders/', orderPayload);
       console.log("2. SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
 
       console.log("3. PAYTR TOKEN İSTEĞİ GÖNDERİLİYOR, ORDER_ID:", orderRes.data.id);
       
+      // 2. PayTR Token'ını iste
       const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
@@ -69,9 +68,14 @@ const Checkout = () => {
       console.log("4. PAYTR'DEN DÖNEN YANIT:", paymentRes.data);
 
       if (paymentRes.data && paymentRes.data.status === "success" && paymentRes.data.paytr_token) {
-        console.log("5. TOKEN BAŞARIYLA ALINDI, IFRAME HAZIRLANIYOR:", paymentRes.data.paytr_token);
-        setIframeToken(paymentRes.data.paytr_token);
+        console.log("5. TOKEN BAŞARIYLA ALINDI! TARAYICI PAYTR SAYFASINA YÖNLENDİRİLİYOR...");
+        
+        // Sepeti temizle
         clearCart();
+        
+        // 🚀 CSP DUVRINI YIKAN KESİN YÖNTEM: Kullanıcıyı doğrudan Sandbox ödeme sayfasına gönderiyoruz
+        window.location.href = `https://www.paytr.com/odeme/sandbox/${paymentRes.data.paytr_token}`;
+        
       } else {
         const errorDetail = paymentRes.data?.detail || "PayTR entegrasyonu doğrulanamadı.";
         throw new Error(errorDetail);
@@ -84,71 +88,6 @@ const Checkout = () => {
       setErrorMessage(`Ödeme Başlatılamadı: ${backendError}`);
     }
   };
-
-  // PayTR Boyutlandırıcı Script Entegrasyonu
-  useEffect(() => {
-    if (iframeToken) {
-      const existingScript = document.getElementById('paytr-script');
-      if (existingScript) existingScript.remove();
-
-      const script = document.createElement('script');
-      script.src = "https://www.paytr.com/js/iframeResizer.min.js";
-      script.id = "paytr-script";
-      script.async = true;
-      
-      script.onload = () => {
-        if (window.iFrameResize) {
-          window.iFrameResize({}, '#paytriframe');
-        }
-      };
-      document.body.appendChild(script);
-    }
-  }, [iframeToken]);
-
-  // 🚀 GÜVENLİK DUVARINI (CSP) AŞAN SANDBOX FORM GENERATOR
-  const getIframeHtml = (token) => {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>PayTR Secure Payment</title>
-        </head>
-        <body style="margin:0; padding:0;">
-          <form id="paytr_form" method="POST" action="https://www.paytr.com/odeme/sandbox">
-            <input type="hidden" name="token" value="${token}" />
-          </form>
-          <script type="text/javascript">
-            window.onload = function() {
-              document.getElementById('paytr_form').submit();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-  };
-
-  if (iframeToken) {
-    return (
-      <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
-        <div className="bg-emerald-50 p-4 rounded-md mb-6 text-sm text-emerald-800 border border-emerald-200 shadow-sm">
-          Siparişiniz alındı. Güvenli test ödeme ekranı yükleniyor...
-        </div>
-        <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
-          {/* 🚀 Güvenli şekilde formu içeride patlatmak için srcDoc yapısına geri döndük */}
-          <iframe 
-            id="paytriframe" 
-            name="paytriframe"
-            srcDoc={getIframeHtml(iframeToken)}
-            frameBorder="0" 
-            scrolling="no" 
-            className="w-full min-h-[650px] border-none"
-            sandbox="allow-top-navigation allow-scripts allow-forms allow-same-origin"
-            allow="payment"
-          ></iframe>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
