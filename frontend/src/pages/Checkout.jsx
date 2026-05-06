@@ -57,14 +57,11 @@ const Checkout = () => {
 
       console.log("1. BACKEND'E GİDEN SİPARİŞ PAKETİ:", orderPayload);
 
-      // Orders endpoint'iniz eğik çizgili bittiği için dokunmuyoruz
       const orderRes = await api.post('/orders/', orderPayload);
       console.log("2. SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
 
       console.log("3. PAYTR TOKEN İSTEĞİ GÖNDERİLİYOR, ORDER_ID:", orderRes.data.id);
       
-      # 🚀 KRİTİK DÜZELTME: Sondaki eğik çizgiyi (/) kaldırdık. 
-      # Böylece 307 Redirect tetiklenmeyecek ve veri kaybı olmadan doğrudan 200 OK dönecek.
       const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
@@ -108,39 +105,21 @@ const Checkout = () => {
     }
   }, [iframeToken]);
 
-  const getIframeHtml = (token) => {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>PayTR Secure Payment</title>
-        </head>
-        <body style="margin:0; padding:0;">
-          <form id="paytr_form" method="POST" action="https://www.paytr.com/odeme/guvenli">
-            <input type="hidden" name="token" value="${token}" />
-          </form>
-          <script type="text/javascript">
-            window.onload = function() {
-              document.getElementById('paytr_form').submit();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-  };
+  // 🚀 İPTAL EDİLDİ: getIframeHtml fonksiyonu ve karmaşık form submit taklidi kaldırıldı.
+  // Doğrudan resmi sandbox endpoint'ini iframe src'sine gömüyoruz.
 
   if (iframeToken) {
     return (
       <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto">
         <div className="bg-emerald-50 p-4 rounded-md mb-6 text-sm text-emerald-800 border border-emerald-200 shadow-sm">
-          Siparişiniz alındı. Güvenli ödeme ekranı yükleniyor...
+          Siparişiniz alındı. Güvenli test ödeme ekranı yükleniyor...
         </div>
         <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 min-h-[650px]">
-          {/* Tarayıcı kalkanlarını esnetmek için sandbox ve allow niteliklerini ekledik */}
+          {/* 🚀 Sandbox URL yapısı doğrudan src olarak bağlandı */}
           <iframe 
             id="paytriframe" 
             name="paytriframe"
-            srcDoc={getIframeHtml(iframeToken)}
+            src={`https://www.paytr.com/odeme/sandbox/${iframeToken}`}
             frameBorder="0" 
             scrolling="no" 
             className="w-full min-h-[650px] border-none"
@@ -156,7 +135,7 @@ const Checkout = () => {
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
       <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Teslimat Bilgileri</h2>
-        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksiksiz doldurun.</p>
+        <p className="text-gray-500 text-sm mb-6">Lütfen fatura ve teslimat adresinizi eksikosiz doldurun.</p>
 
         {status === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-start gap-3">
