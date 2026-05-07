@@ -76,14 +76,26 @@ const ProductManager = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Bu ürünü silmek istediğinizden emin misiniz?")) return;
-    try {
-      await api.delete(`/products/${id}`);
-      fetchProducts();
-    } catch (err) {
-      alert("Hata oluştu.");
-    }
-  };
+  if (!window.confirm("Bu ürünü silmek istediğinizden emin misiniz?")) return;
+  
+  try {
+    // LocalStorage'dan token'ı al (Auth servisinin nereye kaydettiğine emin ol, genelde 'access_token' dır)
+    const token = localStorage.getItem('access_token'); 
+
+    await api.delete(`/products/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}` // Backend bu token'ı görmezse silme işlemini CORS hatasıyla reddeder
+      }
+    });
+
+    // Listeyi yenile
+    setProducts(products.filter(p => p.id !== id));
+    alert("Ürün başarıyla silindi.");
+  } catch (err) {
+    console.error("Silme hatası:", err.response);
+    alert(`Hata: ${err.response?.data?.detail || "Ürün silinemedi. Yetkiniz olmayabilir."}`);
+  }
+};
 
   return (
     <div className="space-y-8 bg-white min-h-full">
