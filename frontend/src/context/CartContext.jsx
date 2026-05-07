@@ -42,10 +42,29 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
+  // 💰 Toplam Fiyat Hesaplama
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
+  // ⚖️ Toplam Kilo Hesaplama
+  // Ürünlerin miktarını (quantity) doğrudan kilo olarak kabul ediyoruz.
+  const totalWeight = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  // 🚫 Ödeme Yapılabilir mi? (3 kg sınırı)
+  const isEligibleForCheckout = totalWeight >= 3;
+
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, total }}>
+    <CartContext.Provider 
+      value={{ 
+        cart, 
+        addToCart, 
+        removeFromCart, 
+        updateQuantity, 
+        clearCart, 
+        total, 
+        totalWeight,           // Yeni: Toplam kilo bilgisini dışarı açtık
+        isEligibleForCheckout  // Yeni: Ödeme izni bilgisini dışarı açtık
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
