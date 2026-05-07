@@ -3,17 +3,17 @@ import { useCart } from '../context/CartContext';
 import api from '../services/api';
 import { AlertTriangle } from 'lucide-react';
 
-// 🚀 81 İL VE İLÇE DATA BLOĞU (Dosyanın dışında, kod kalabalığı yaratmaz)
+// 🚀 81 İL VE İLÇE DATA BLOĞU
 const TURKEY_CITIES = {
   "Adana": ["Aladağ", "Ceyhan", "Çukurova", "Feke", "İmamoğlu", "Karaisalı", "Karataş", "Kozan", "Pozantı", "Saimbeyli", "Sarıçam", "Seyhan", "Tufanbeyli", "Yumurtalık", "Yüreğir"],
-  "Adiyanat": ["Besni", "Çelikhan", "Gerger", "Gölbaşı", "Kahta", "Merkez", "Samsat", "Sincik", "Tut"],
+  "Adıyaman": ["Besni", "Çelikhan", "Gerger", "Gölbaşı", "Kahta", "Merkez", "Samsat", "Sincik", "Tut"],
   "Afyonkarahisar": ["Başmakçı", "Bayat", "Bolvadin", "Çay", "Çobanlar", "Dazkırı", "Dinar", "Emirdağ", "Evciler", "Hocalar", "İhsaniye", "İscehisar", "Merkez", "Sandıklı", "Sinanpaşa", "Sultandağı", "Şuhut"],
   "Ağrı": ["Diyadin", "Doğubayazıt", "Eleşkirt", "Hamur", "Merkez", "Patnos", "Taşlıçay", "Tutak"],
   "Amasya": ["Göynücek", "Gümüşhacıköy", "Hamamözü", "Merkez", "Merzifon", "Suluova", "Taşova"],
   "Ankara": ["Akyurt", "Altındağ", "Ayaş", "Bala", "Beypazarı", "Çamlıdere", "Çankaya", "Çubuk", "Elmadağ", "Etimesgut", "Evren", "Gölbaşı", "Güdül", "Haymana", "Kahramankazan", "Kalecik", "Keçiören", "Kızılcahamam", "Mamak", "Nallıhan", "Polatlı", "Pursaklar", "Sincan", "Şereflikoçhisar", "Yenimahalle"],
   "Antalya": ["Akseki", "Aksu", "Alanya", "Demre", "Döşemealtı", "Elmalı", "Finike", "Gazipaşa", "Gündoğmuş", "İbradı", "Kaş", "Kemer", "Kepez", "Konyaaltı", "Korkuteli", "Kumluca", "Manavgat", "Muratpaşa", "Serik"],
   "Artvin": ["Ardanuç", "Arhavi", "Borçka", "Hayati", "Merkez", "Murgul", "Şavşat", "Yusufeli"],
-  "Aydın": ["Bozdoğan", "Buharkent", "Çine", "Didim", "Efeler", "Germencik", "Incirliova", "Karacasu", "Karpuzlu", "Koçarlı", "Köşk", "Kuşadası", "Kuyucak", "Nazilli", "Söke", "Sultanhisar", "Yenipazar"],
+  "Aydın": ["Bozdoğan", "Buharkent", "Çine", "Didim", "Efeler", "Germencik", "İncirliova", "Karacasu", "Karpuzlu", "Koçarlı", "Köşk", "Kuşadası", "Kuyucak", "Nazilli", "Söke", "Sultanhisar", "Yenipazar"],
   "Balıkesir": ["Altıeylül", "Ayvalık", "Balya", "Bandırma", "Bigadiç", "Burhaniye", "Dursunbey", "Edremit", "Erdek", "Gömeç", "Gönen", "Havran", "İvrindi", "Karesi", "Kepsut", "Manyas", "Marmara", "Savaştepe", "Sındırgı", "Susurluk"],
   "Bilecik": ["Bozüyük", "Gölpazarı", "İnhisar", "Merkez", "Osmaneli", "Pazaryeri", "Söğüt", "Yenipazar"],
   "Bingöl": ["Adaklı", "Genç", "Karlıova", "Kiğı", "Merkez", "Solhan", "Yayladere", "Yedisu"],
@@ -28,7 +28,7 @@ const TURKEY_CITIES = {
   "Diyarbakır": ["Bağlar", "Bismil", "Çermik", "Çınar", "Çüngüş", "Dicle", "Eğil", "Ergani", "Hani", "Hazro", "Kayapınar", "Kocaköy", "Kulp", "Lice", "Silvan", "Sur", "Yenişehir"],
   "Edirne": ["Enez", "Havsa", "İpsala", "Keşan", "Lalapaşa", "Meriç", "Merkez", "Süloğlu", "Uzunköprü"],
   "Elazığ": ["Ağın", "Alacakaya", "Arıcak", "Baskil", "Karakoçan", "Keban", "Kovancılar", "Maden", "Merkez", "Palu", "Sivrice"],
-  "Erzincan": ["Çayırlı", "Iliç", "Kemah", "Kemaliye", "Merkez", "Otlukbeli", "Refahiye", "Tercan", "Üzümlü"],
+  "Erzincan": ["Çayırlı", "İliç", "Kemah", "Kemaliye", "Merkez", "Otlukbeli", "Refahiye", "Tercan", "Üzümlü"],
   "Erzurum": ["Aşkale", "Aziziye", "Çat", "Hınıs", "Horasan", "İspir", "Karaçoban", "Karayazı", "Köprüköy", "Narman", "Oltu", "Olur", "Palandöken", "Pasiler", "Pazaryolu", "Şenkaya", "Tekman", "Tortum", "Uzundere", "Yakutiye"],
   "Eskişehir": ["Alpu", "Beylikova", "Çifteler", "Günyüzü", "Han", "İnönü", "Mahmudiye", "Mihalgazi", "Mihalıççık", "Odunpazarı", "Sarıcakaya", "Seyitgazi", "Sivrihisar", "Tepebaşı"],
   "Gaziantep": ["Araban", "İslahiye", "Karkamış", "Nizip", "Nurdağı", "Oğuzeli", "Şahinbey", "Şehitkamil", "Yavuzeli"],
@@ -45,9 +45,9 @@ const TURKEY_CITIES = {
   "Karaman": ["Ayrancı", "Başyayla", "Ermenek", "Kazımkarabekir", "Merkez", "Sarıveliler"],
   "Kars": ["Akyaka", "Arpaçay", "Digor", "Kağızman", "Merkez", "Sarıkamış", "Selim", "Susuz"],
   "Kastamonu": ["Abana", "Ağlı", "Araç", "Azdavay", "Bozkurt", "Cide", "Çatalzeytin", "Daday", "Devrekani", "Doğanyurt", "Hanönü", "İhsangazi", "İnebolu", "Küre", "Merkez", "Pınarbaşı", "Seydiler", "Taşköprü", "Tosya"],
-  "Kayseri": ["Akkışla", "Bünyan", "Develi", "Felahiye", "Hacılar", "Incesu", "Kocasinan", "Melikgazi", "Özvatan", "Pınarbaşı", "Sarıoğlan", "Sarız", "Talas", "Tomarza", "Yahyalı", "Yeşilhisar"],
+  "Kayseri": ["Akkışla", "Bünyan", "Develi", "Felahiye", "Hacılar", "İncesu", "Kocasinan", "Melikgazi", "Özvatan", "Pınarbaşı", "Sarıoğlan", "Sarız", "Talas", "Tomarza", "Yahyalı", "Yeşilhisar"],
   "Kırıkkale": ["Bahşılı", "Balışeyh", "Çelebi", "Delice", "Karakeçili", "Keskin", "Merkez", "Sulakyurt", "Yahşihan"],
-  "Kırklareli": ["Babaeski", "Demirköy", "Kofçaz", "Lüleburgaz", "Merkez", " Pehlivanköy", "Pınarhisar", "Vize"],
+  "Kırklareli": ["Babaeski", "Demirköy", "Kofçaz", "Lüleburgaz", "Merkez", "Pehlivanköy", "Pınarhisar", "Vize"],
   "Kırşehir": ["Akçakent", "Akpınar", "Boztepe", "Çiçekdağı", "Kaman", "Merkez", "Mucur"],
   "Kilis": ["Elbeyli", "Merkez", "Musabeyli", "Polateli"],
   "Kocaeli": ["Başiskele", "Çayırova", "Darica", "Derince", "Dilovası", "Gebze", "Gölcük", "İzmit", "Kandıra", "Karamürsel", "Kartepe", "Körfez"],
@@ -93,8 +93,6 @@ const Checkout = () => {
     company: '',
     address: '',
     apartment: '',
-    zip_code: '',
-    town: '', 
     phone: '',
     save_info: false
   });
@@ -103,7 +101,6 @@ const Checkout = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [paytrToken, setPaytrToken] = useState(null);
 
-  // 🚀 İL DEĞİŞTİĞİNDE İLÇEYİ TEMİZLEMEK İÇİN ÖZEL KONTROL EKLENDİ
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
@@ -111,7 +108,7 @@ const Checkout = () => {
       setFormData(p => ({ 
         ...p, 
         city: value, 
-        district: '' // İl değişince ilçeyi sıfırla ki eski ilin ilçesi kalmasın
+        district: '' 
       }));
     } else {
       setFormData(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
@@ -120,15 +117,24 @@ const Checkout = () => {
 
   const handleCheckoutInit = async (e) => {
     e.preventDefault();
-    console.log("1. ADIM - TOKEN İSTEĞİ BAŞLATILDI!");
-    setStatus('loading');
-    setErrorMessage('');
+    
+    // 🚀 MİNİMUM 3KG KONTROLÜ
+    const totalWeight = cart.reduce((total, item) => total + item.quantity, 0);
+    if (totalWeight < 3) {
+      setStatus('error');
+      setErrorMessage(`Minimum sipariş miktarı 3 kg olmalıdır. Şu anki miktar: ${totalWeight} kg`);
+      return;
+    }
 
     if (!formData.city || !formData.district) {
       setStatus('error');
       setErrorMessage("Lütfen İl ve İlçe seçimini yapın.");
       return;
     }
+
+    console.log("1. ADIM - TOKEN İSTEĞİ BAŞLATILDI!");
+    setStatus('loading');
+    setErrorMessage('');
 
     try {
       const orderPayload = {
@@ -139,36 +145,21 @@ const Checkout = () => {
         items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
       };
 
-      // 1. Sipariş oluştur
-      console.log("2. ADIM - BACKEND'DE SİPARİŞ OLUŞTURULUYOR...", orderPayload);
       const orderRes = await api.post('/orders/', orderPayload);
-      console.log("3. ADIM - SİPARİŞ BAŞARIYLA OLUŞTU:", orderRes.data);
-
-      // 2. Token iste
-      console.log("4. ADIM - BACKEND'DEN PAYTR TOKEN İSTENİYOR, ORDER_ID:", orderRes.data.id);
       const paymentRes = await api.post('/payment/create', { 
         order_id: orderRes.data.id 
       });
 
-      console.log("5. ADIM - BACKEND'DEN DÖNEN PAYTR YANITI:", paymentRes.data);
-
       if (paymentRes.data && paymentRes.data.status === "success" && paymentRes.data.paytr_token) {
-        console.log("6. ADIM - TOKEN ALINDI! IFRAME AKTİFLEŞTİRİLİYOR.");
-        
-        // Sepeti güvenle temizle
         clearCart();
-        
-        // Token'ı state'e atayıp ekranda iFrame'i render ediyoruz
         setPaytrToken(paymentRes.data.paytr_token);
         setStatus('ready_to_pay');
-        
       } else {
         const errorDetail = paymentRes.data?.detail || "PayTR entegrasyonu doğrulanamadı.";
         throw new Error(errorDetail);
       }
 
     } catch (err) {
-      console.error("FRONTEND YAZILIMSAL HATA DETAYI:", err);
       setStatus('error');
       const backendError = err.response?.data?.detail || err.message || "Bir hata oluştu.";
       setErrorMessage(`Ödeme Başlatılamadı: ${backendError}`);
@@ -192,7 +183,6 @@ const Checkout = () => {
           </div>
         )}
 
-        {/* 🚀 2. ADIM: TOKEN ALINDIKTAN SONRA AÇILAN RESMİ PAYTR IFRAME PENCERESİ */}
         {status === 'ready_to_pay' && paytrToken ? (
           <div className="w-full flex justify-center items-center border border-gray-100 rounded-md overflow-hidden bg-white min-h-[600px] shadow-inner">
             <iframe 
@@ -205,12 +195,9 @@ const Checkout = () => {
             />
           </div>
         ) : (
-          /* 🚀 1. ADIM: KULLANICI BİLGİ FORMU */
           <form onSubmit={handleCheckoutInit} autoComplete="off" className="space-y-4 max-w-xl mx-auto">
             
-            {/* 🚀 GÜNCELLENEN ADRES SEÇİM ALANI (81 İL DİNAMİK YAPILDI) */}
             <div className="grid grid-cols-2 gap-4">
-              {/* İL SEÇİMİ */}
               <select 
                 name="city" 
                 required 
@@ -224,14 +211,13 @@ const Checkout = () => {
                 ))}
               </select>
 
-              {/* DİNAMİK İLÇE SEÇİMİ */}
               <select 
                 name="district" 
                 required 
                 value={formData.district} 
                 onChange={handleInputChange} 
                 disabled={!formData.city}
-                className="border p-3 rounded-md w-full focus:border-red-800 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="border p-3 rounded-md w-full focus:border-red-800 outline-none disabled:opacity-50"
               >
                 <option value="">İlçe Seçiniz</option>
                 {formData.city && TURKEY_CITIES[formData.city]?.map((district) => (
@@ -255,11 +241,6 @@ const Checkout = () => {
             <input name="company" placeholder="Şirket (isteğe bağlı)" value={formData.company} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
             <input name="address" placeholder="Adres (Mahalle, Cadde, Sokak)" required value={formData.address} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
             <input name="apartment" placeholder="Apartman Daire v.b" value={formData.apartment} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
-
-            <div className="grid grid-cols-2 gap-4">
-              <input name="zip_code" placeholder="Posta kodu (isteğe bağlı)" value={formData.zip_code} onChange={handleInputChange} className="border p-3 rounded-md outline-none" />
-              <input name="town" placeholder="Şehir" required value={formData.town} onChange={handleInputChange} className="border p-3 rounded-md outline-none" />
-            </div>
 
             <input name="phone" placeholder="Telefon" required value={formData.phone} onChange={handleInputChange} className="border p-3 rounded-md w-full outline-none" />
 
