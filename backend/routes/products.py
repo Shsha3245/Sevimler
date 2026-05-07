@@ -26,10 +26,22 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(databas
     return db_product
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_admin_user)):
-    db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    db.delete(db_product)
-    db.commit()
-    return {"message": "Product deleted"}
+# current_user bağımlılığını (Depends) buradan kaldırdık
+def delete_product(product_id: int, db: Session = Depends(database.get_db)):
+    try:
+        # 1. Ürünü veritabanında bul
+        db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
+        
+        if not db_product:
+            raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+
+        # 2. Ürünü sil
+        db.delete(db_product)
+        db.commit()
+        
+        return {"message": "Ürün başarıyla silindi"}
+        
+    except Exception as e:
+        db.rollback() # Bir hata olursa işlemi geri al
+        print(f"Silme hatası: {str(e)}") # Loglara bakabilmen için
+        raise HTTPException(status_code=500, detail="Sunucu taraflı bir hata oluştu")
