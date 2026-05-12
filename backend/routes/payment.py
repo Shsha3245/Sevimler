@@ -74,46 +74,60 @@ def create_payment(
 
 # --- EKLEDİĞİMİZ VE ÇÖZÜMÜ SAĞLAYACAK KISIM BURASI ---
 
-@router.post("/callback", response_class=PlainTextResponse)
-@router.get("/callback", response_class=PlainTextResponse)
-@router.post("/callback/", response_class=PlainTextResponse)
-@router.get("/callback/", response_class=PlainTextResponse)
-async def paytr_callback(
-    merchant_oid: str = Form(...),
-    status: str = Form(...),
-    total_amount: str = Form(...),
-    hash: str = Form(...),
-    db: Session = Depends(database.get_db)
-):
+@router.api_route("/callback", methods=["GET", "POST"], response_class=PlainTextResponse)
+@router.api_route("/callback/", methods=["GET", "POST"], response_class=PlainTextResponse)
+async def paytr_callback(request: Request, db: Session = Depends(database.get_db)):
+    """
+    PayTR ödeme bildirimi endpoint'i.
+    Hem GET hem POST destekler, Form verilerini manuel ayıklar.
+    """
+    # Log: İsteğin nasıl geldiğini gör
     print(f"--- BİLDİRİM GELDİ | Metot: {request.method} ---")
-    """
-    PayTR ödeme bittiğinde bu endpoint'e POST isteği atar.
-    Paranın askıdan inmesi için 'OK' dönmek şarttır.
-    """
+    
     try:
-        # merchant_oid formatı paytr.py'de 'SP{id}' olarak belirlenmişti.
-        order_id = int(merchant_oid.replace("SP", ""))
+        # Form verilerini manuel alıyoruz (FastAPI doğrulamasına takılmamak için)
+        form_data = await request.form()
+        
+        merchant_oid = form_data.get("merchant_oid")
+        status = form_data.get("status")
+        # total_amount ve hash_val gerekirse buradan alınabilir (form_data.get("hash"))
+
+        # Eğer GET ile boş gelmişse veya veri yoksa sadece OK dön
+        if not merchant_oid:
+            print("⚠️ Bildirim verisi boş geldi (Muhtemelen boş bir GET isteği).")
+            return PlainTextResponse("OK")
+
+        # Log: Gelen veriyi bas
+        print(f"--- İşlenen OID: {merchant_oid} | Durum: {status} ---")
+
+        # 1. Siparişi Bul
+        try:
+            order_id = int(merchant_oid.replace("SP", ""))
+        except (ValueError, AttributeError):
+            print(f"❌ Geçersiz merchant_oid formatı: {merchant_oid}")
+            return PlainTextResponse("OK")
+
         order = db.query(models.Order).filter(models.Order.id == order_id).first()
 
         if not order:
-            print(f"⚠️ Bildirim geldi ancak {merchant_oid} sistemde bulunamadı.")
-            return PlainTextResponse("OK") # Sipariş olmasa da OK dönmelisin ki PayTR denemeyi bıraksın.
+            print(f"⚠️ Bildirim geldi ancak {merchant_oid} veritabanında bulunamadı.")
+            return PlainTextResponse("OK")
 
+        # 2. Durum Güncelleme
         if status == "success":
-            # 💰 Ödeme başarılı
             order.status = "PAID"
             print(f"✅ Sipariş {merchant_oid} için ödeme BAŞARILI.")
         else:
-            # ❌ Ödeme başarısız
             order.status = "FAILED"
             print(f"❌ Sipariş {merchant_oid} için ödeme BAŞARISIZ. Neden: {status}")
 
         db.commit()
-
-        # 🚀 PAYTR PARAYI AKTARMAK İÇİN SADECE BUNU BEKLER:
         return PlainTextResponse("OK")
 
     except Exception as e:
+        print(f"🔥 Callback İşleme Hatası: {str(e)}")
+        # Hata olsa dahi PayTR'a OK dönüyoruz ki döngüye girmesin
+        return PlainTextResponse("OK")
         print(f"🔥 Callback İşleme Hatası: {str(e)}")
         # Hata olsa dahi OK dönmek, PayTR'ın sürekli tekrar istek atıp sunucuyu yormasını engeller.
         return PlainTextResponse("OK")
