@@ -45,3 +45,43 @@ def delete_product(product_id: int, db: Session = Depends(database.get_db)):
         db.rollback() # Bir hata olursa işlemi geri al
         print(f"Silme hatası: {str(e)}") # Loglara bakabilmen için
         raise HTTPException(status_code=500, detail="Sunucu taraflı bir hata oluştu")
+
+@router.put("/{product_id}", response_model=schemas.Product)
+def update_product(
+    product_id: int, 
+    product_update: schemas.ProductCreate, # Mevcut şemanı kullanabilirsin
+    db: Session = Depends(database.get_db),
+    # current_user: models.User = Depends(auth.get_current_admin_user) # Güvenlik için sonra açabilirsin
+):
+    """
+    Ürün bilgilerini (isim, fiyat, resim, kategori) günceller.
+    """
+    try:
+        # 1. Ürünü bul
+        db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
+        
+        if not db_product:
+            raise HTTPException(status_code=404, detail="Güncellenecek ürün bulunamadı")
+
+        # 2. Gelen verileri veritabanı nesnesine aktar
+        update_data = product_update.dict()
+        
+        # Kategori kontrolü (DB güvenliği için)
+        if update_data['category'] not in models.ALLOWED_CATEGORIES:
+             raise HTTPException(status_code=400, detail="Geçersiz kategori")
+
+        for key, value in update_data.items():
+            setattr(db_product, key, value)
+
+        # 3. Kaydet ve Yenile
+        db.commit()
+        db.refresh(db_product)
+        
+        return db_product
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        print(f"Güncelleme hatası: {str(e)}")
+        raise HTTPException(status_code=500, detail="Güncelleme sırasında bir hata oluştu")
