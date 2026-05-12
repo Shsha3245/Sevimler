@@ -74,8 +74,10 @@ def create_payment(
 
 # --- EKLEDİĞİMİZ VE ÇÖZÜMÜ SAĞLAYACAK KISIM BURASI ---
 
-@router.post("/callback",methods=["GET", "POST"], response_class=PlainTextResponse)
-@router.post("/callback/",methods=["GET", "POST"], response_class=PlainTextResponse)
+@router.post("/callback", response_class=PlainTextResponse)
+@router.get("/callback", response_class=PlainTextResponse)
+@router.post("/callback/", response_class=PlainTextResponse)
+@router.get("/callback/", response_class=PlainTextResponse)
 async def paytr_callback(
     merchant_oid: str = Form(...),
     status: str = Form(...),
