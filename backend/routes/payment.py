@@ -74,8 +74,8 @@ def create_payment(
 
 # --- EKLEDİĞİMİZ VE ÇÖZÜMÜ SAĞLAYACAK KISIM BURASI ---
 
-@router.post("/callback", response_class=PlainTextResponse)
-@router.post("/callback/", response_class=PlainTextResponse)
+@router.post("/callback",methods=["GET", "POST"], response_class=PlainTextResponse)
+@router.post("/callback/",methods=["GET", "POST"], response_class=PlainTextResponse)
 async def paytr_callback(
     merchant_oid: str = Form(...),
     status: str = Form(...),
@@ -83,6 +83,7 @@ async def paytr_callback(
     hash: str = Form(...),
     db: Session = Depends(database.get_db)
 ):
+    print(f"--- BİLDİRİM GELDİ | Metot: {request.method} ---")
     """
     PayTR ödeme bittiğinde bu endpoint'e POST isteği atar.
     Paranın askıdan inmesi için 'OK' dönmek şarttır.
