@@ -81,7 +81,7 @@ class OrderItemSchema(BaseModel):
     quantity: int
     price_at_time: float
     product_name: Optional[str] = None
-    product_image = Optional[str] = None
+    product_image: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
