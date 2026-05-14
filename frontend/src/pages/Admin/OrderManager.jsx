@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    ShoppingCart, User, MapPin, Phone, Calendar, Hash, 
-    Truck, Check, X, Search, Filter, ChevronDown, 
-    Package, Clock, Eye, Image as ImageIcon 
+    User, MapPin, Phone, Hash, 
+    Truck, X, Search, Package, Eye, Image as ImageIcon 
 } from 'lucide-react';
 
 const OrderManager = () => {
@@ -23,7 +22,7 @@ const OrderManager = () => {
             const res = await api.get('/admin/orders');
             setOrders(res.data);
         } catch (err) {
-            console.error("Failed to fetch all orders", err);
+            console.error("Siparişler çekilemedi:", err);
         } finally {
             setLoading(false);
         }
@@ -62,6 +61,7 @@ const OrderManager = () => {
 
     return (
         <div className="space-y-8 bg-white min-h-full">
+            {/* Header Area */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-gray-50 p-8 rounded-2xl border border-gray-100 gap-6">
                 <div>
                     <h2 className="text-2xl font-bold text-[#1c1917]">Sipariş Yönetimi</h2>
@@ -94,6 +94,7 @@ const OrderManager = () => {
                 </div>
             </div>
 
+            {/* Orders Table */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
@@ -147,11 +148,6 @@ const OrderManager = () => {
                         ))}
                     </tbody>
                 </table>
-                {filteredOrders.length === 0 && (
-                    <div className="p-32 text-center text-gray-300 uppercase font-black tracking-widest text-xs">
-                        Gösterilecek sipariş bulunamadı.
-                    </div>
-                )}
             </div>
 
             {/* Order Details Modal */}
@@ -185,23 +181,23 @@ const OrderManager = () => {
                             </div>
 
                             {/* Modal Content */}
-                            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto p-12">
                                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                                     
-                                    {/* Left: Info (5 Columns) */}
+                                    {/* Left: Client Info */}
                                     <div className="lg:col-span-5 space-y-10">
                                         <section className="space-y-6">
                                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Müşteri & Teslimat</h4>
                                             <div className="space-y-4">
-                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-amber-100 transition-colors">
+                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent">
                                                     <div className="p-2 bg-white rounded-lg shadow-sm"><User className="w-4 h-4 text-gray-400" /></div>
                                                     <span className="text-sm font-bold text-[#1c1917]">{selectedOrder.full_name}</span>
                                                 </div>
-                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-amber-100 transition-colors">
+                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent">
                                                     <div className="p-2 bg-white rounded-lg shadow-sm"><Phone className="w-4 h-4 text-gray-400" /></div>
                                                     <span className="text-sm font-bold text-[#1c1917]">{selectedOrder.phone}</span>
                                                 </div>
-                                                <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-amber-100 transition-colors">
+                                                <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent">
                                                     <div className="p-2 bg-white rounded-lg shadow-sm mt-0.5"><MapPin className="w-4 h-4 text-gray-400" /></div>
                                                     <span className="text-sm font-medium text-stone-600 leading-relaxed">{selectedOrder.address}</span>
                                                 </div>
@@ -209,7 +205,7 @@ const OrderManager = () => {
                                         </section>
 
                                         <section className="space-y-6">
-                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Durum Yönetimi</h4>
+                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Durum Güncelle</h4>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {["preparing", "shipped", "delivered", "cancelled"].map(st => (
                                                     <button 
@@ -224,28 +220,18 @@ const OrderManager = () => {
                                                 ))}
                                             </div>
                                         </section>
-
-                                        {selectedOrder.tracking_number && (
-                                            <section className="space-y-4 p-6 bg-amber-50 rounded-3xl border border-amber-100">
-                                                <div className="flex items-center space-x-2 text-[#d97706]">
-                                                    <Truck className="w-5 h-5" />
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Kargo Takip</span>
-                                                </div>
-                                                <p className="text-xl font-black text-[#1c1917] font-mono tracking-tighter">{selectedOrder.tracking_number}</p>
-                                            </section>
-                                        )}
                                     </div>
 
-                                    {/* Right: Items (7 Columns) */}
+                                    {/* Right: Items (Product Name + ID Area) */}
                                     <div className="lg:col-span-7 space-y-8">
                                         <section className="space-y-6">
                                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Sipariş İçeriği</h4>
                                             <div className="space-y-3">
                                                 {selectedOrder.items.map((item, idx) => (
-                                                    <div key={idx} className="group flex justify-between items-center p-3 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                                                    <div key={idx} className="group flex justify-between items-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all">
                                                         <div className="flex items-center space-x-4">
-                                                            {/* Ürün Fotoğrafı */}
-                                                            <div className="relative w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-50">
+                                                            {/* Product Image */}
+                                                            <div className="relative w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 flex-shrink-0">
                                                                 {item.product_image ? (
                                                                     <img 
                                                                         src={item.product_image} 
@@ -257,21 +243,27 @@ const OrderManager = () => {
                                                                         <ImageIcon className="w-6 h-6" />
                                                                     </div>
                                                                 )}
-                                                                <div className="absolute top-0 right-0 bg-[#1c1917] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg">
-                                                                    {item.quantity} Adet
-                                                                </div>
                                                             </div>
                                                             
+                                                            {/* Product Name and ID */}
                                                             <div>
-                                                                <p className="text-sm font-bold text-[#1c1917] group-hover:text-[#d97706] transition-colors">
-                                                                    {item.product_name || `Ürün #${item.product_id}`}
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono font-bold">
+                                                                        ID: {item.product_id}
+                                                                    </span>
+                                                                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">
+                                                                        {item.quantity} ADET
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-sm font-bold text-[#1c1917] group-hover:text-[#d97706] transition-colors leading-tight">
+                                                                    {item.product_name || "İsimsiz Ürün"}
                                                                 </p>
-                                                                <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-                                                                    Birim: {item.price_at_time.toLocaleString()} ₺
+                                                                <p className="text-[10px] text-gray-400 font-medium mt-1">
+                                                                    Birim Fiyat: {item.price_at_time.toLocaleString()} ₺
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <div className="text-right pr-2">
+                                                        <div className="text-right">
                                                             <span className="text-sm font-black text-[#1c1917]">
                                                                 {(item.price_at_time * item.quantity).toLocaleString()} ₺
                                                             </span>
@@ -279,24 +271,20 @@ const OrderManager = () => {
                                                     </div>
                                                 ))}
                                             </div>
-                                            
-                                            {/* Toplam Tutar Alanı */}
+
+                                            {/* Summary */}
                                             <div className="mt-8 p-8 bg-[#1c1917] rounded-[2.5rem] text-white relative overflow-hidden shadow-2xl">
                                                 <div className="relative z-10 flex justify-between items-end">
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/80 mb-1">Ödeme Özeti</p>
-                                                        <h5 className="text-gray-400 text-xs font-medium">KDV ve komisyonlar dahil</h5>
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/80 mb-1">Genel Toplam</p>
+                                                        <h5 className="text-gray-400 text-xs font-medium">Vergiler Dahil Edilmiştir</h5>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Toplam Tahsilat</p>
                                                         <p className="text-4xl font-black text-white tracking-tighter">
                                                             {selectedOrder.total_price.toLocaleString()} <span className="text-amber-500 text-xl font-bold">₺</span>
                                                         </p>
                                                     </div>
                                                 </div>
-                                                {/* Arka plan dekoru */}
-                                                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
-                                                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
                                             </div>
                                         </section>
                                     </div>
