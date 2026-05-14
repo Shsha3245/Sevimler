@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, User, MapPin, Phone, Calendar, Hash, Truck, Check, X, Search, Filter, ChevronDown, Package, Clock, Eye } from 'lucide-react';
+import { 
+    ShoppingCart, User, MapPin, Phone, Calendar, Hash, 
+    Truck, Check, X, Search, Filter, ChevronDown, 
+    Package, Clock, Eye, Image as ImageIcon 
+} from 'lucide-react';
 
 const OrderManager = () => {
     const [orders, setOrders] = useState([]);
@@ -85,6 +89,7 @@ const OrderManager = () => {
                         <option value="preparing">Hazırlanıyor</option>
                         <option value="shipped">Kargoda</option>
                         <option value="delivered">Teslim Edildi</option>
+                        <option value="cancelled">İptal Edildi</option>
                     </select>
                 </div>
             </div>
@@ -157,7 +162,7 @@ const OrderManager = () => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+                            className="bg-white rounded-[3rem] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
                         >
                             {/* Modal Header */}
                             <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -170,7 +175,7 @@ const OrderManager = () => {
                                         <div className="flex items-center space-x-3 mt-0.5">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-[#d97706]">{new Date(selectedOrder.created_at).toLocaleString()}</span>
                                             <span className="w-1 h-1 bg-amber-500 rounded-full"></span>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{selectedOrder.status}</span>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${getStatusStyle(selectedOrder.status).split(' ')[1]}`}>{selectedOrder.status}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -181,21 +186,22 @@ const OrderManager = () => {
 
                             {/* Modal Content */}
                             <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-                                    {/* Left: Info */}
-                                    <div className="space-y-12">
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                                    
+                                    {/* Left: Info (5 Columns) */}
+                                    <div className="lg:col-span-5 space-y-10">
                                         <section className="space-y-6">
                                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Müşteri & Teslimat</h4>
                                             <div className="space-y-4">
-                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl">
+                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-amber-100 transition-colors">
                                                     <div className="p-2 bg-white rounded-lg shadow-sm"><User className="w-4 h-4 text-gray-400" /></div>
                                                     <span className="text-sm font-bold text-[#1c1917]">{selectedOrder.full_name}</span>
                                                 </div>
-                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl">
+                                                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-amber-100 transition-colors">
                                                     <div className="p-2 bg-white rounded-lg shadow-sm"><Phone className="w-4 h-4 text-gray-400" /></div>
                                                     <span className="text-sm font-bold text-[#1c1917]">{selectedOrder.phone}</span>
                                                 </div>
-                                                <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-2xl">
+                                                <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-amber-100 transition-colors">
                                                     <div className="p-2 bg-white rounded-lg shadow-sm mt-0.5"><MapPin className="w-4 h-4 text-gray-400" /></div>
                                                     <span className="text-sm font-medium text-stone-600 leading-relaxed">{selectedOrder.address}</span>
                                                 </div>
@@ -203,41 +209,19 @@ const OrderManager = () => {
                                         </section>
 
                                         <section className="space-y-6">
-                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Durum Güncelle</h4>
+                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Durum Yönetimi</h4>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {["preparing", "shipped", "delivered", "cancelled"].map(st => (
                                                     <button 
                                                         key={st} 
                                                         onClick={() => updateStatus(selectedOrder.id, st)}
-                                                        className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedOrder.status === st ? 'bg-[#1c1917] text-white shadow-lg' : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-[#1c1917]'}`}
+                                                        className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${selectedOrder.status === st ? 'bg-[#1c1917] text-white border-[#1c1917] shadow-lg scale-[1.02]' : 'bg-white text-gray-400 border-gray-100 hover:border-amber-200 hover:text-[#1c1917]'}`}
                                                     >
-                                                        {st}
+                                                        {st === 'preparing' ? 'Hazırlanıyor' : 
+                                                         st === 'shipped' ? 'Kargoda' : 
+                                                         st === 'delivered' ? 'Teslim Edildi' : 'İptal Et'}
                                                     </button>
                                                 ))}
-                                            </div>
-                                        </section>
-                                    </div>
-
-                                    {/* Right: Items */}
-                                    <div className="space-y-12">
-                                        <section className="space-y-6">
-                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Ürün Özetleri</h4>
-                                            <div className="space-y-4">
-                                                {selectedOrder.items.map((item, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                                                        <div className="flex items-center space-x-4">
-                                                            <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-[10px] font-bold text-gray-400">
-                                                                {item.quantity}x
-                                                            </div>
-                                                            <span className="text-sm font-bold text-[#1c1917]">{item.product_name || `Ürün #${item.product_id}`}</span>
-                                                        </div>
-                                                        <span className="text-sm font-black text-stone-400">{(item.price_at_time * item.quantity).toLocaleString()} ₺</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="p-6 bg-[#1c1917] rounded-3xl text-white flex justify-between items-center shadow-2xl">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Genel Toplam</span>
-                                                <span className="text-2xl font-black">{selectedOrder.total_price.toLocaleString()} ₺</span>
                                             </div>
                                         </section>
 
@@ -250,6 +234,71 @@ const OrderManager = () => {
                                                 <p className="text-xl font-black text-[#1c1917] font-mono tracking-tighter">{selectedOrder.tracking_number}</p>
                                             </section>
                                         )}
+                                    </div>
+
+                                    {/* Right: Items (7 Columns) */}
+                                    <div className="lg:col-span-7 space-y-8">
+                                        <section className="space-y-6">
+                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d97706] border-b border-amber-50 pb-2">Sipariş İçeriği</h4>
+                                            <div className="space-y-3">
+                                                {selectedOrder.items.map((item, idx) => (
+                                                    <div key={idx} className="group flex justify-between items-center p-3 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                                                        <div className="flex items-center space-x-4">
+                                                            {/* Ürün Fotoğrafı */}
+                                                            <div className="relative w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-50">
+                                                                {item.product_image ? (
+                                                                    <img 
+                                                                        src={item.product_image} 
+                                                                        alt={item.product_name} 
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                                        <ImageIcon className="w-6 h-6" />
+                                                                    </div>
+                                                                )}
+                                                                <div className="absolute top-0 right-0 bg-[#1c1917] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg">
+                                                                    {item.quantity} Adet
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div>
+                                                                <p className="text-sm font-bold text-[#1c1917] group-hover:text-[#d97706] transition-colors">
+                                                                    {item.product_name || `Ürün #${item.product_id}`}
+                                                                </p>
+                                                                <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                                                    Birim: {item.price_at_time.toLocaleString()} ₺
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right pr-2">
+                                                            <span className="text-sm font-black text-[#1c1917]">
+                                                                {(item.price_at_time * item.quantity).toLocaleString()} ₺
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            
+                                            {/* Toplam Tutar Alanı */}
+                                            <div className="mt-8 p-8 bg-[#1c1917] rounded-[2.5rem] text-white relative overflow-hidden shadow-2xl">
+                                                <div className="relative z-10 flex justify-between items-end">
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/80 mb-1">Ödeme Özeti</p>
+                                                        <h5 className="text-gray-400 text-xs font-medium">KDV ve komisyonlar dahil</h5>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Toplam Tahsilat</p>
+                                                        <p className="text-4xl font-black text-white tracking-tighter">
+                                                            {selectedOrder.total_price.toLocaleString()} <span className="text-amber-500 text-xl font-bold">₺</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {/* Arka plan dekoru */}
+                                                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
+                                                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+                                            </div>
+                                        </section>
                                     </div>
                                 </div>
                             </div>
