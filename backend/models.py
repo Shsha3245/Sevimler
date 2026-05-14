@@ -21,7 +21,7 @@ class Product(Base):
     description = Column(String)
     price = Column(Float)
     stock = Column(Integer)
-    weight = Column(Float, default=1.0) # Default 1KG for existing items
+    weight = Column(Float, default=1.0)
     image_url = Column(String)
     category = Column(String, default="Kuruyemiş")
 
@@ -40,7 +40,7 @@ class Order(Base):
     status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
-    # Customer Details
+    # Müşteri Bilgileri
     full_name = Column(String)
     address = Column(String)
     phone = Column(String)
@@ -48,6 +48,7 @@ class Order(Base):
     payment_id = Column(String, nullable=True)
     tracking_number = Column(String, nullable=True)
 
+    # Sipariş kalemleri ile ilişki
     items = relationship("OrderItem", back_populates="order")
 
 class OrderItem(Base):
@@ -58,5 +59,15 @@ class OrderItem(Base):
     quantity = Column(Integer)
     price_at_time = Column(Float)
 
+    # İlişkiler
     order = relationship("Order", back_populates="items")
     product = relationship("Product")
+
+    # --- DOĞRU YER BURASI: Ürün bilgilerini çekmek için ---
+    @property
+    def product_name(self):
+        return self.product.name if self.product else "İsimsiz Ürün"
+
+    @property
+    def product_image(self):
+        return self.product.image_url if self.product else None
